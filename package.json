@@ -1,0 +1,22 @@
+{
+  "name": "ledger-expenses",
+  "version": "1.0.0",
+  "description": "Ledger: a private daily expense tracker (PWA + Android app) that keeps your data on your own device.",
+  "private": true,
+  "license": "MIT",
+  "scripts": {
+    "serve": "npx http-server www -p 8080 -c-1",
+    "android:add": "cap add android",
+    "android:sync": "cap sync android",
+    "android:open": "cap open android"
+  },
+  "dependencies": {
+    "@capacitor/android": "^6.1.2",
+    "@capacitor/core": "^6.1.2",
+    "@capacitor/filesystem": "^6.0.1",
+    "@capacitor/share": "^6.0.2"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^6.1.2"
+  }
+}
