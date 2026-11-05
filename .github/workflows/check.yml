@@ -1,0 +1,21 @@
+name: Check
+on: [push, pull_request]
+jobs:
+  syntax:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - name: JavaScript files parse
+        run: |
+          for f in www/storage.js www/themes.js www/boot.js www/sw.js; do node --check "$f"; done
+      - name: Inline app script parses
+        run: |
+          node -e "
+          const h=require('fs').readFileSync('www/index.html','utf8');
+          const m=h.match(/<script type=\"text\/plain\" id=\"appsrc\">([\s\S]*?)<\/script>/);
+          if(!m) throw new Error('app script not found');
+          new Function(m[1]); console.log('app script OK');"
+      - name: manifest.json is valid
+        run: node -e "JSON.parse(require('fs').readFileSync('www/manifest.json','utf8')); console.log('manifest OK')"
