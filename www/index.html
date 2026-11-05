@@ -1,0 +1,2699 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+<title>Ledger — Daily Expenses</title>
+<script>document.documentElement.classList.add('booting');</script>
+<script src="storage.js"></script>
+<script src="themes.js"></script>
+<meta name="theme-color" content="#1B2430" />
+<link rel="manifest" href="manifest.json" />
+<link rel="apple-touch-icon" href="apple-touch-icon.png" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Ledger" />
+<link rel="icon" href="favicon.png" type="image/png" />
+<link rel="icon" href="icon.svg" type="image/svg+xml" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=Cormorant+Garamond:wght@500;600;700&family=Playfair+Display:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#1B2430;
+    --paper:#F3EAD9;
+    --paper-line:#D8C9AC;
+    --paper-line-soft:#E4D6BA;
+    --rule-red:#B33A32;
+    --ledger-green:#33553B;
+    --ochre:#B9863C;
+    --ink-brown:#2B2118;
+    --muted:#8A7A57;
+    --nav-h: 64px;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color: transparent;}
+  html,body{height:100%;}
+  body{
+    margin:0;
+    background:var(--ink);
+    font-family:'Inter',sans-serif;
+    color:var(--ink-brown);
+    overscroll-behavior:none;
+  }
+  #app{
+    max-width:480px;
+    margin:0 auto;
+    height:100vh;
+    height:100dvh;
+    background:var(--ink);
+    display:flex;
+    flex-direction:column;
+    position:relative;
+    overflow:hidden;
+  }
+  header.topbar{
+    padding: calc(env(safe-area-inset-top,0px) + 18px) 20px 14px;
+    text-align:center;
+    flex-shrink:0;
+  }
+  .wordmark{
+    font-family:'Special Elite',monospace;
+    font-size:24px;
+    letter-spacing:0.1em;
+    color:var(--paper);
+  }
+  .sub{
+    font-size:11px;
+    letter-spacing:0.08em;
+    color:#8891A0;
+    margin-top:3px;
+    text-transform:uppercase;
+  }
+  main{
+    flex:1 1 auto;
+    min-height:0;
+    overflow-y:auto;
+    -webkit-overflow-scrolling:touch;
+    padding: 0 14px calc(var(--nav-h) + env(safe-area-inset-bottom,0px) + 24px);
+  }
+  .view{ display:none; }
+  .view.active{ display:block; animation: fadein .18s ease-out; }
+  @keyframes fadein{ from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:none;} }
+
+  .card{
+    background:var(--paper);
+    border-radius:14px;
+    padding:16px 18px;
+    margin-bottom:14px;
+    box-shadow:0 6px 18px rgba(0,0,0,0.28);
+  }
+
+  /* Tape */
+  .tape-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; }
+  .tape-hole{ width:7px; height:7px; border-radius:50%; background:var(--ink); margin:0 auto; }
+  .tape-label{ font-size:10px; letter-spacing:0.1em; color:var(--muted); font-weight:600; }
+  .tape-amount{ font-family:'IBM Plex Mono',monospace; font-size:22px; font-weight:600; margin-top:2px; }
+  .tape-divider{ width:1px; height:32px; background:var(--paper-line); }
+
+  /* Add form */
+  .amount-row{ display:flex; align-items:baseline; border-bottom:1px solid var(--paper-line); padding-bottom:10px; margin-bottom:12px; }
+  .currency{ font-family:'IBM Plex Mono',monospace; font-size:22px; color:var(--ochre); margin-right:6px; }
+  #amountInput{ flex:1; border:none; background:transparent; outline:none; font-family:'IBM Plex Mono',monospace; font-size:28px; color:var(--ink-brown); width:100%; }
+  #amountInput::placeholder{ color:#B0A489; }
+  #noteInput{ width:100%; border:none; border-bottom:1px solid var(--paper-line); background:transparent; outline:none; font-size:15px; color:var(--ink-brown); padding:8px 2px 12px; margin-bottom:14px; font-family:'Inter',sans-serif; }
+  #noteInput::placeholder{ color:#B0A489; }
+
+  .date-row{ display:flex; align-items:center; gap:8px; margin-bottom:16px; }
+  .date-quick{ background:#EADFC5; border:2px solid transparent; border-radius:20px; padding:8px 12px; font-size:12.5px; font-weight:500; color:var(--ink-brown); cursor:pointer; flex-shrink:0; }
+  .date-quick.selected{ border-color:var(--ledger-green); background:#E1EEE2; }
+  #entryDateInput{ flex:1; min-width:0; border:1px solid var(--paper-line); border-radius:20px; padding:7px 12px; font-size:12.5px; color:var(--ink-brown); background:#fff; font-family:'Inter',sans-serif; }
+
+  .cat-grid{ display:flex; flex-wrap:wrap; gap:8px; margin-bottom:16px; }
+  .cat-pill, .pay-pill{ display:flex; align-items:center; gap:6px; background:#EADFC5; border:2px solid transparent; border-radius:20px; padding:8px 12px; font-size:13px; font-weight:500; color:var(--ink-brown); cursor:pointer; }
+  .cat-pill.selected, .pay-pill.selected{ border-color:var(--ledger-green); background:#E1EEE2; }
+  .cat-pill svg, .pay-pill svg{ width:15px; height:15px; }
+
+  .btn{ display:flex; align-items:center; justify-content:center; gap:7px; border:none; border-radius:24px; padding:14px; font-size:15px; font-weight:600; cursor:pointer; width:100%; font-family:'Inter',sans-serif; }
+  .btn-primary{ background:var(--ledger-green); color:var(--paper); }
+  .btn-outline{ background:transparent; color:var(--ink-brown); border:1.5px solid var(--paper-line); }
+  .btn svg{ width:17px; height:17px; }
+  .error-text{ color:var(--rule-red); font-size:12px; margin-top:8px; text-align:center; }
+
+  #voiceBtn.listening{ background:var(--rule-red); animation:pulse 1.4s ease-in-out infinite; }
+  @keyframes pulse{ 0%,100%{ opacity:1; } 50%{ opacity:0.72; } }
+  @media (prefers-reduced-motion: reduce){ #voiceBtn.listening{ animation:none; } }
+
+  /* today mini list */
+  .section-label{ font-size:11px; letter-spacing:0.08em; color:#8891A0; font-weight:600; margin:18px 4px 8px; text-transform:uppercase; }
+
+  /* history */
+  .search-wrap{ display:flex; align-items:center; gap:8px; background:var(--paper); border-radius:12px; padding:10px 14px; margin-bottom:12px; }
+  .search-wrap svg{ width:16px; height:16px; color:var(--muted); flex-shrink:0; }
+  #searchInput{ flex:1; border:none; background:transparent; outline:none; font-size:14px; color:var(--ink-brown); font-family:'Inter',sans-serif; }
+  #searchInput::placeholder{ color:#B0A489; }
+  #monthFilter{ border:none; background:transparent; outline:none; font-size:13px; color:var(--muted); font-family:'Inter',sans-serif; }
+
+  .day-block{ margin-bottom:4px; }
+  .day-heading{ display:flex; justify-content:space-between; font-size:11px; letter-spacing:0.08em; color:var(--muted); font-weight:700; padding:10px 4px 6px; text-transform:uppercase; }
+  .day-total{ font-family:'IBM Plex Mono',monospace; color:#5B6470; }
+  .entry-row{ display:flex; align-items:center; gap:10px; padding:11px 4px; border-bottom:1px dashed var(--paper-line-soft); background:var(--paper); }
+  .day-block .entry-row:first-of-type{ border-top-left-radius:10px; border-top-right-radius:10px; }
+  .entry-icon{ width:28px; height:28px; border-radius:50%; background:#EADFC5; display:flex; align-items:center; justify-content:center; color:#5B6470; flex-shrink:0; }
+  .entry-icon svg{ width:15px; height:15px; }
+  .entry-note{ flex:1; font-size:13.5px; min-width:0; }
+  .entry-cat{ font-size:10px; color:#B0A489; text-transform:uppercase; letter-spacing:0.06em; margin-top:2px; }
+  .entry-amount{ font-family:'IBM Plex Mono',monospace; font-size:14px; font-weight:600; flex-shrink:0; }
+  .del-btn{ background:transparent; border:none; color:var(--rule-red); padding:6px; flex-shrink:0; cursor:pointer; }
+  .del-btn svg{ width:14px; height:14px; display:block; }
+  .entry-main{ display:flex; align-items:center; gap:10px; flex:1; min-width:0; cursor:pointer; }
+  .empty{ color:var(--muted); font-size:13px; text-align:center; padding:32px 10px; font-style:italic; background:var(--paper); border-radius:14px; }
+
+  /* edit modal + confirm dialog */
+  .modal-overlay{ display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:110; align-items:flex-end; justify-content:center; }
+  .modal-overlay.show{ display:flex; }
+  .modal-sheet{ background:var(--paper); width:100%; max-width:480px; border-radius:20px 20px 0 0; padding:20px 18px calc(20px + env(safe-area-inset-bottom,0px)); max-height:88vh; overflow-y:auto; }
+  .modal-title{ font-family:'Special Elite',serif; font-size:18px; color:var(--ink-brown); margin-bottom:14px; }
+  .modal-actions{ display:flex; gap:10px; margin-top:16px; }
+  .modal-actions .btn{ flex:1; }
+  .btn-danger{ background:var(--rule-red); color:var(--paper); }
+  .confirm-card{ background:var(--paper); width:100%; max-width:360px; border-radius:16px; padding:22px 20px; text-align:center; }
+  .confirm-card .modal-title{ margin-bottom:6px; }
+  .confirm-card p{ font-size:13px; color:var(--muted); margin:0 0 18px; line-height:1.5; }
+  #confirmOverlay{ align-items:center; }
+
+  /* export */
+  .export-row{ display:flex; align-items:center; justify-content:space-between; padding:10px 0; border-bottom:1px solid var(--paper-line-soft); font-size:14px; }
+  .export-row:last-child{ border-bottom:none; }
+  .export-row .val{ font-family:'IBM Plex Mono',monospace; font-weight:600; }
+  select{ font-family:'IBM Plex Mono',monospace; font-size:15px; padding:8px 10px; border-radius:8px; border:1px solid var(--paper-line); background:#fff; color:var(--ink-brown); }
+  .hint{ font-size:12px; color:var(--muted); line-height:1.5; margin-top:10px; }
+  .copied-toast{ position:fixed; bottom:calc(var(--nav-h) + 20px); left:50%; transform:translateX(-50%); background:var(--ink-brown); color:var(--paper); padding:10px 18px; border-radius:20px; font-size:13px; opacity:0; pointer-events:none; transition:opacity .2s; z-index:50; }
+
+  /* scan */
+  .scan-row{ display:grid; grid-template-columns: 1fr auto; gap:6px 8px; padding:12px 0; border-bottom:1px dashed var(--paper-line-soft); }
+  .scan-row:last-child{ border-bottom:none; }
+  .scan-row-fields{ display:flex; flex-wrap:wrap; gap:6px; }
+  .scan-row input[type="text"], .scan-row input[type="number"], .scan-row input[type="date"], .scan-row select{
+    border:1px solid var(--paper-line); border-radius:8px; padding:7px 8px; font-size:13px; background:#fff; color:var(--ink-brown); font-family:'Inter',sans-serif;
+  }
+  .scan-row input[type="text"]{ flex:1 1 100%; }
+  .scan-row input[type="date"]{ flex:1 1 128px; }
+  .scan-row input[type="number"]{ flex:1 1 90px; font-family:'IBM Plex Mono',monospace; }
+  .scan-row select{ flex:1 1 110px; }
+  .scan-row-top{ display:flex; align-items:flex-start; gap:8px; }
+  .scan-row-top input[type="checkbox"]{ width:18px; height:18px; margin-top:8px; accent-color:var(--ledger-green); flex-shrink:0; }
+  .scan-del{ background:transparent; border:none; color:var(--rule-red); padding:6px; cursor:pointer; flex-shrink:0; }
+  .scan-del svg{ width:15px; height:15px; display:block; }
+  .scan-thumb{ position:relative; width:72px; height:72px; border-radius:8px; overflow:hidden; flex-shrink:0; }
+  .scan-thumb img{ width:100%; height:100%; object-fit:cover; display:block; }
+  .scan-thumb-remove{ position:absolute; top:2px; right:2px; width:20px; height:20px; border-radius:50%; background:rgba(27,36,48,0.75); border:none; color:#fff; display:flex; align-items:center; justify-content:center; cursor:pointer; padding:0; }
+  .scan-thumb-remove svg{ width:11px; height:11px; }
+  .copied-toast.show{ opacity:1; }
+
+  /* bottom nav */
+  nav.bottomnav{
+    position:fixed;
+    left:50%;
+    bottom:0;
+    transform:translateX(-50%);
+    width:100%;
+    max-width:480px;
+    display:flex;
+    background:rgba(27,36,48,0.96);
+    backdrop-filter: blur(10px);
+    border-top:1px solid rgba(255,255,255,0.08);
+    padding-bottom:env(safe-area-inset-bottom,0px);
+    height:calc(var(--nav-h) + env(safe-area-inset-bottom,0px));
+    z-index:20;
+  }
+  nav.bottomnav button{
+    flex:1; background:none; border:none; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px;
+    color:#6C7686; cursor:pointer; padding:8px 0 4px;
+  }
+  nav.bottomnav button svg{ width:21px; height:21px; }
+  nav.bottomnav button span{ font-size:10px; letter-spacing:0.03em; font-weight:600; }
+  nav.bottomnav button.active{ color:var(--ochre); }
+
+  /* ===== settings button, lock, income, report (added) ===== */
+  header.topbar{ position:relative; }
+  .settings-btn{ position:absolute; top:calc(env(safe-area-inset-top,0px) + 14px); right:14px; background:none; border:none; padding:8px; color:#8891A0; cursor:pointer; }
+  .settings-btn svg{ width:20px; height:20px; display:block; }
+  .modal-sheet.dark{ background:var(--ink); color:var(--paper); }
+  .modal-sheet.dark .modal-title{ color:var(--paper); }
+  .modal-sheet.dark .btn-outline{ color:var(--paper); border-color:rgba(255,255,255,0.22); }
+  .modal-sheet.dark .hint{ color:#8891A0; }
+  #askOverlay{ z-index:400; align-items:center; }
+
+  html .lock-screen{ display:none; position:fixed; inset:0; z-index:300; background:var(--ink); flex-direction:column; align-items:center; justify-content:center; padding:24px; text-align:center; overflow-y:auto; }
+  html.locked .lock-screen{ display:flex; }
+  .privacy-cover{ display:none; position:fixed; inset:0; z-index:290; background:var(--ink); align-items:center; justify-content:center; }
+  html.privacy .privacy-cover{ display:flex; }
+  .lock-wordmark{ font-family:'Special Elite',monospace; font-size:24px; letter-spacing:0.1em; color:var(--paper); margin-bottom:4px; }
+  .lock-sub{ font-size:12.5px; color:#8891A0; margin-bottom:26px; }
+  .lock-dots{ display:flex; gap:14px; margin-bottom:18px; height:14px; justify-content:center; }
+  .lock-dot{ width:14px; height:14px; border-radius:50%; border:1.5px solid #56607A; background:transparent; transition:background .12s,border-color .12s; }
+  .lock-dot.filled{ background:var(--ochre); border-color:var(--ochre); }
+  .lock-error{ color:#E08A80; font-size:12.5px; margin-bottom:14px; min-height:16px; }
+  .keypad{ display:grid; grid-template-columns:repeat(3,64px); gap:14px; justify-content:center; margin-bottom:10px; }
+  .keypad-btn{ width:64px; height:64px; border-radius:50%; background:rgba(255,255,255,0.07); border:1px solid rgba(255,255,255,0.12); color:var(--paper); font-size:22px; font-family:'IBM Plex Mono',monospace; display:flex; align-items:center; justify-content:center; cursor:pointer; padding:0; }
+  .keypad-btn:active{ background:rgba(255,255,255,0.18); }
+  .keypad-btn.ghost{ background:none; border:none; cursor:default; }
+  .biometric-btn{ display:flex; align-items:center; gap:8px; justify-content:center; background:rgba(185,134,60,0.18); border:1px solid var(--ochre); color:var(--ochre); border-radius:24px; padding:12px 20px; font-size:14px; font-weight:600; cursor:pointer; margin-bottom:22px; }
+  .biometric-btn svg{ width:18px; height:18px; }
+  .lock-link{ background:none; border:none; color:#6C7686; font-size:12px; text-decoration:underline; cursor:pointer; margin-top:22px; font-family:'Inter',sans-serif; }
+  .shake{ animation:shake .35s; }
+  @keyframes shake{ 0%,100%{transform:translateX(0);} 20%{transform:translateX(-8px);} 40%{transform:translateX(8px);} 60%{transform:translateX(-5px);} 80%{transform:translateX(5px);} }
+  .pattern-grid{ display:grid; grid-template-columns:repeat(3,64px); grid-template-rows:repeat(3,64px); gap:26px; margin:0 auto 18px; position:relative; touch-action:none; user-select:none; -webkit-user-select:none; }
+  .pattern-dot{ width:64px; height:64px; display:flex; align-items:center; justify-content:center; }
+  .pattern-dot::before{ content:''; width:16px; height:16px; border-radius:50%; background:rgba(255,255,255,0.18); border:1.5px solid #56607A; transition:all .1s; }
+  .pattern-dot.active::before{ background:var(--ochre); border-color:var(--ochre); transform:scale(1.25); }
+  .pattern-svg{ position:absolute; inset:0; pointer-events:none; width:100%; height:100%; overflow:visible; }
+  .pattern-svg line{ stroke:var(--ochre); stroke-width:3.5; stroke-linecap:round; }
+
+  .lock-settings-row{ display:flex; align-items:center; justify-content:space-between; padding:12px 0; border-bottom:1px solid var(--paper-line-soft); gap:12px; }
+  .lock-settings-row .lbl{ font-size:13.5px; color:var(--ink-brown); }
+  .lock-settings-row .lbl small{ display:block; font-size:11px; color:var(--muted); margin-top:2px; font-weight:400; }
+  .toggle-switch{ position:relative; width:44px; height:26px; border-radius:14px; background:#D8C9AC; border:none; flex-shrink:0; cursor:pointer; padding:0; }
+  .toggle-switch::after{ content:''; position:absolute; top:3px; left:3px; width:20px; height:20px; border-radius:50%; background:#fff; transition:transform .15s; box-shadow:0 1px 3px rgba(0,0,0,0.3); }
+  .toggle-switch.on{ background:var(--ledger-green); }
+  .toggle-switch.on::after{ transform:translateX(18px); }
+
+  .big-amount{ flex:1; border:none; background:transparent; outline:none; font-family:'IBM Plex Mono',monospace; font-size:28px; color:var(--ink-brown); width:100%; }
+  .line-input{ width:100%; border:none; border-bottom:1px solid var(--paper-line); background:transparent; outline:none; font-size:15px; color:var(--ink-brown); padding:8px 2px 12px; margin-bottom:14px; font-family:'Inter',sans-serif; }
+  .date-input{ flex:1; min-width:0; border:1px solid var(--paper-line); border-radius:20px; padding:7px 12px; font-size:12.5px; color:var(--ink-brown); background:#fff; font-family:'Inter',sans-serif; }
+  .balance-row{ display:flex; justify-content:space-between; align-items:center; padding:9px 0 0; margin-top:10px; border-top:1px dashed var(--paper-line); font-size:13px; color:var(--muted); }
+  .balance-row b{ font-family:'IBM Plex Mono',monospace; font-size:15px; }
+  .bal-pos{ color:var(--ledger-green); } .bal-neg{ color:var(--rule-red); }
+  .income-amount{ color:var(--ledger-green); }
+  .month-pick{ border:none; background:transparent; font-size:13px; color:var(--muted); font-family:'Inter',sans-serif; }
+  .rpt-fields{ display:flex; gap:8px; margin:2px 0 12px; flex-wrap:wrap; }
+  .rpt-fields .date-input{ flex:1 1 130px; border-radius:10px; }
+  .rpt-fields label{ font-size:11px; color:var(--muted); display:block; margin:0 0 3px 4px; }
+  .rpt-fields > div{ flex:1 1 130px; }
+  .backup-banner{ display:flex; align-items:center; gap:10px; background:#F8E9C8; border:1px solid var(--ochre); }
+  .backup-banner .txt{ flex:1; font-size:12.5px; line-height:1.4; color:var(--ink-brown); }
+  .backup-banner button{ border:none; border-radius:16px; padding:8px 12px; font-size:12px; font-weight:600; cursor:pointer; font-family:'Inter',sans-serif; }
+</style>
+<link rel="stylesheet" href="themes.css">
+</head>
+<body>
+<div id="app">
+  <header class="topbar">
+    <button class="settings-btn" id="settingsBtn" aria-label="Settings">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg>
+    </button>
+    <div class="wordmark">LEDGER</div>
+    <div class="sub" id="todayDateLine"></div>
+  </header>
+
+  <main>
+    <!-- ADD / HOME VIEW -->
+    <section class="view active" id="view-add">
+      <div class="card backup-banner" id="backupBanner" style="display:none;">
+        <div class="txt"><b>Back up your data.</b> A backup file lets you restore everything if the app's data is ever cleared or you move to a new phone.</div>
+        <button style="background:var(--ledger-green);color:var(--paper);" id="backupNowBtn">Back up</button>
+        <button style="background:transparent;color:var(--muted);" id="backupLaterBtn">Later</button>
+      </div>
+
+      <div class="card">
+        <div class="tape-row">
+          <div>
+            <div class="tape-label">TODAY</div>
+            <div class="tape-amount" id="todayTotal">₹0.00</div>
+          </div>
+          <div class="tape-divider"></div>
+          <div>
+            <div class="tape-label">THIS MONTH</div>
+            <div class="tape-amount" id="monthTotal">₹0.00</div>
+          </div>
+        </div>
+        <div class="balance-row" id="homeBalanceRow" style="display:none;"><span>Balance this month <span style="font-size:11px;">(received − spent)</span></span><b id="homeBalance">₹0.00</b></div>
+      </div>
+
+      <div class="card" id="voiceCard">
+        <button type="button" class="btn btn-primary" id="voiceBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 15a3 3 0 003-3V6a3 3 0 00-6 0v6a3 3 0 003 3z"/><path d="M19 11a7 7 0 01-14 0M12 18v3"/></svg>
+          Speak an entry
+        </button>
+        <div class="hint" id="voiceStatus" style="margin-top:10px; text-align:center; display:none;"></div>
+      </div>
+
+      <div class="card">
+        <div class="amount-row">
+          <span class="currency">₹</span>
+          <input id="amountInput" type="number" inputmode="decimal" step="0.01" placeholder="0.00" />
+        </div>
+        <input id="noteInput" type="text" placeholder="What was it for?" />
+
+        <div class="date-row">
+          <button type="button" class="date-quick" id="dateQuickToday">Today</button>
+          <button type="button" class="date-quick" id="dateQuickYesterday">Yesterday</button>
+          <input type="date" id="entryDateInput" />
+        </div>
+
+        <div class="cat-grid" id="catGrid"></div>
+        <div id="metroBlock" style="display:none;">
+          <div class="section-label" style="margin:2px 4px 8px;">Metro card</div>
+          <div class="cat-grid" id="metroCardGrid" style="margin-bottom:8px;"></div>
+          <div class="cat-grid" id="metroKindGrid" style="margin-bottom:6px;"></div>
+          <div class="hint" id="metroKindHint" style="margin:0 4px 14px;"></div>
+        </div>
+        <div id="payBlock">
+          <div class="section-label" style="margin:2px 4px 8px;">Paid via</div>
+          <div class="cat-grid" id="paymentGrid" style="margin-bottom:16px;"></div>
+        </div>
+        <button class="btn btn-primary" id="logBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+          Log it
+        </button>
+        <div class="error-text" id="errorText" style="display:none;"></div>
+      </div>
+
+      <div class="section-label" id="addListLabel">Today's entries</div>
+      <div id="todayList"></div>
+    </section>
+
+    <!-- HISTORY VIEW -->
+    <section class="view" id="view-history">
+      <div class="search-wrap">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+        <input id="searchInput" type="text" placeholder="Search notes…" />
+        <input id="monthFilter" type="month" />
+      </div>
+      <div id="historyList"></div>
+    </section>
+
+    <!-- INCOME VIEW -->
+    <section class="view" id="view-income">
+      <div class="card">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+          <div class="tape-label" id="incMonthLbl">THIS MONTH</div>
+          <input type="month" id="incMonthInput" class="month-pick" />
+        </div>
+        <div class="tape-row">
+          <div>
+            <div class="tape-label">RECEIVED</div>
+            <div class="tape-amount income-amount" id="incReceived">₹0.00</div>
+          </div>
+          <div class="tape-divider"></div>
+          <div>
+            <div class="tape-label">SPENT</div>
+            <div class="tape-amount" id="incSpent">₹0.00</div>
+          </div>
+        </div>
+        <div class="balance-row"><span>Balance this month</span><b id="incBalance">₹0.00</b></div>
+        <div class="balance-row" style="border-top:none; padding-top:4px; margin-top:0;"><span>All-time balance</span><b id="incBalanceAll">₹0.00</b></div>
+      </div>
+
+      <div class="card">
+        <div class="section-label" style="margin-top:0;">Add money received</div>
+        <div class="amount-row">
+          <span class="currency">₹</span>
+          <input id="incAmount" class="big-amount" type="number" inputmode="decimal" step="0.01" placeholder="0.00" />
+        </div>
+        <input id="incNote" class="line-input" type="text" placeholder="From whom / note (optional)" />
+        <div class="date-row">
+          <button type="button" class="date-quick" id="incQuickToday">Today</button>
+          <button type="button" class="date-quick" id="incQuickYesterday">Yesterday</button>
+          <input type="date" id="incDate" class="date-input" />
+        </div>
+        <div class="cat-grid" id="incTypeGrid"></div>
+        <button class="btn btn-primary" id="incAddBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+          Add income
+        </button>
+        <div class="error-text" id="incError" style="display:none;"></div>
+      </div>
+
+      <div class="section-label" id="incListLabel">Money received</div>
+      <div id="incomeList"></div>
+    </section>
+
+    <!-- SCAN VIEW -->
+    <section class="view" id="view-scan">
+      <div class="card">
+        <div class="section-label" style="margin-top:0;">Scan old notes</div>
+        <div class="hint" style="margin-top:0; margin-bottom:14px;">Photograph pages where you'd written expenses by hand or in a notebook — add as many as you need, from the camera or your gallery. The app reads them all and lists out what it can find, and you check each line before it's saved.</div>
+
+        <input type="file" id="scanCameraInput" accept="image/*" capture="environment" style="display:none;" />
+        <input type="file" id="scanGalleryInput" accept="image/*" multiple style="display:none;" />
+        <div style="display:flex; gap:10px;">
+          <button class="btn btn-outline" id="scanCameraBtn" style="flex:1;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7V5a1 1 0 011-1h2M4 17v2a1 1 0 001 1h2M20 7V5a1 1 0 00-1-1h-2M20 17v2a1 1 0 01-1 1h-2"/><circle cx="12" cy="12" r="3.5"/></svg>
+            Take photo
+          </button>
+          <button class="btn btn-outline" id="scanGalleryBtn" style="flex:1;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+            Upload photos
+          </button>
+        </div>
+
+        <div id="scanPreviewWrap" style="display:none; margin-top:14px;">
+          <div class="hint" style="margin-top:0; margin-bottom:8px;" id="scanCountLabel"></div>
+          <div id="scanThumbs" style="display:flex; flex-wrap:wrap; gap:8px;"></div>
+          <button class="btn btn-primary" id="scanExtractBtn" style="margin-top:12px;">Read these photos</button>
+        </div>
+
+        <div id="scanProgressWrap" style="display:none; margin-top:14px;">
+          <div style="background:var(--chip); border-radius:8px; height:8px; overflow:hidden;">
+            <div id="scanProgressBar" style="background:var(--ledger-green); height:100%; width:0%; transition:width .2s;"></div>
+          </div>
+          <div class="hint" id="scanProgressText" style="text-align:center; margin-top:8px;">Reading…</div>
+        </div>
+      </div>
+
+      <div id="scanResultsWrap" style="display:none;">
+        <div class="section-label">Found these lines — check &amp; edit</div>
+        <div class="card" id="scanRowsCard" style="padding:10px 14px;"></div>
+        <button class="btn btn-outline" id="scanAddRowBtn" style="margin-bottom:12px;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+          Add a blank line
+        </button>
+        <button class="btn btn-primary" id="scanSaveBtn">Save checked entries</button>
+      </div>
+    </section>
+
+    <!-- EXPORT VIEW -->
+    <section class="view" id="view-export">
+      <div class="card">
+        <div class="section-label" style="margin-top:0;">What to export</div>
+        <div class="hint" style="margin-top:0; margin-bottom:12px;">Pick the period. It applies to everything below: image, PDF, JSON, CSV and text.</div>
+        <div class="cat-grid" id="rptKindGrid" style="margin-bottom:10px;"></div>
+        <div class="rpt-fields" id="rptFields">
+          <div data-k="day"><label>Day</label><input type="date" id="rptDay" class="date-input" /></div>
+          <div data-k="week"><label>Any day in the week (Mon–Sun)</label><input type="date" id="rptWeek" class="date-input" /></div>
+          <div data-k="month"><label>Month</label><input type="month" id="rptMonth" class="date-input" /></div>
+          <div data-k="range"><label>From</label><input type="date" id="rptFrom" class="date-input" /></div>
+          <div data-k="range"><label>To</label><input type="date" id="rptTo" class="date-input" /></div>
+        </div>
+        <div class="export-row" style="border-bottom:none; padding-bottom:4px;"><span>Include money received (PDF and JSON)</span><button class="toggle-switch on" id="rptIncToggle" aria-label="Include income"></button></div>
+        <div class="hint" id="rptPreview" style="margin:4px 0 0;"></div>
+      </div>
+
+      <div class="card">
+        <div class="section-label" style="margin-top:0;">Format</div>
+        <div class="cat-grid" id="expFormatGrid" style="margin-bottom:6px;"></div>
+        <div class="hint" id="expFormatHint" style="margin:0 4px 12px;"></div>
+        <div id="expGroupWrap">
+          <div class="section-label" style="margin:2px 4px 8px;">Group as</div>
+          <div class="cat-grid" id="groupModeGrid" style="margin-bottom:4px;"></div>
+          <div class="hint" style="margin-top:0; margin-bottom:14px;">"By day" lists day by day. "By section" splits everything into Travel, Food and Other with a total for each.</div>
+        </div>
+        <button class="btn btn-primary" id="expShareBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 10.6l6.8-3.8M8.6 13.4l6.8 3.8"/></svg>
+          <span id="expShareLabel">Share</span>
+        </button>
+        <div style="display:flex; gap:10px; margin-top:10px;">
+          <button class="btn btn-outline" id="expDownloadBtn" style="flex:1;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 21h16"/></svg>
+            <span id="expDownloadLabel">Download</span>
+          </button>
+          <button class="btn btn-outline" id="expExtraBtn" style="flex:1;"></button>
+        </div>
+        <div class="hint" id="shareHint" style="margin-top:8px;">On a phone, Share opens your normal share sheet (WhatsApp, Mail, Drive…). If it isn't available, the file downloads instead.</div>
+        <div class="error-text" id="rptError" style="display:none;"></div>
+      </div>
+
+
+      <div class="card">
+        <div class="section-label" style="margin-top:0;">Import entries</div>
+        <div class="hint" style="margin-top:0; margin-bottom:12px;">Bring in expenses from a backup file (.json) — from a previous export, or one someone put together for you. Entries land under their own dates automatically.</div>
+        <input type="file" id="importFileInput" accept="application/json,.json" style="display:none;" />
+        <button class="btn btn-outline" id="importBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 21V9m0 0l-4 4m4-4l4 4M4 3h16"/></svg>
+          Choose file to import
+        </button>
+        <div class="hint" id="importStatus" style="margin-top:8px;"></div>
+      </div>
+    </section>
+
+    <!-- IMAGE PREVIEW OVERLAY -->
+    <div id="imageOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.75); z-index:100; align-items:center; justify-content:center; flex-direction:column; padding:20px;">
+      <div style="max-width:420px; width:100%; max-height:80vh; overflow-y:auto; border-radius:10px; box-shadow:0 10px 40px rgba(0,0,0,0.5);">
+        <canvas id="receiptCanvas" style="width:100%; display:block;"></canvas>
+      </div>
+      <div style="display:flex; gap:10px; margin-top:16px; width:100%; max-width:420px;">
+        <button class="btn btn-outline" id="closeImageBtn" style="background:var(--paper);">Close</button>
+        <button class="btn btn-primary" id="shareImageBtn">Share image</button>
+      </div>
+    </div>
+
+    <!-- EDIT ENTRY MODAL -->
+    <div class="modal-overlay" id="editOverlay">
+      <div class="modal-sheet">
+        <div class="modal-title">Edit entry</div>
+        <div class="amount-row">
+          <span class="currency">₹</span>
+          <input id="editAmountInput" type="number" inputmode="decimal" step="0.01" placeholder="0.00" />
+        </div>
+        <input id="editNoteInput" type="text" placeholder="What was it for?" style="margin-bottom:16px;" />
+        <input type="date" id="editDateInput" style="margin-bottom:16px;" />
+
+        <div class="cat-grid" id="editCatGrid"></div>
+        <div id="editMetroBlock" style="display:none;">
+          <div class="section-label" style="margin:2px 4px 8px;">Metro card</div>
+          <div class="cat-grid" id="editMetroCardGrid" style="margin-bottom:8px;"></div>
+          <div class="cat-grid" id="editMetroKindGrid" style="margin-bottom:12px;"></div>
+        </div>
+        <div id="editPayBlock">
+          <div class="section-label" style="margin:2px 4px 8px;">Paid via</div>
+          <div class="cat-grid" id="editPayGrid" style="margin-bottom:4px;"></div>
+        </div>
+        <div class="error-text" id="editErrorText" style="display:none;"></div>
+
+        <div class="modal-actions">
+          <button class="btn btn-outline" id="editCancelBtn">Cancel</button>
+          <button class="btn btn-primary" id="editSaveBtn">Save changes</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- DELETE CONFIRM DIALOG -->
+    <div class="modal-overlay" id="confirmOverlay">
+      <div class="confirm-card">
+        <div class="modal-title">Delete this entry?</div>
+        <p id="confirmEntryDesc">This can't be undone.</p>
+        <div class="modal-actions">
+          <button class="btn btn-outline" id="confirmCancelBtn">Cancel</button>
+          <button class="btn btn-danger" id="confirmDeleteBtn">Delete</button>
+        </div>
+      </div>
+    </div>
+    <!-- SETTINGS SHEET -->
+    <div class="modal-overlay" id="settingsOverlay">
+      <div class="modal-sheet">
+        <div class="modal-title">Settings</div>
+
+        <div class="section-label" style="margin-top:0;">Appearance</div>
+        <div class="theme-grid" id="themeGrid"></div>
+
+        <div class="section-label">App lock</div>
+        <div class="hint" style="margin-top:0; margin-bottom:4px;">Asks for a code before the app opens. It keeps casual snoopers out; your entries are still stored unencrypted on this device.</div>
+        <div class="lock-settings-row">
+          <div class="lbl">App lock<small id="lockStateHint">Off</small></div>
+          <button class="toggle-switch" id="lockToggle" aria-label="App lock"></button>
+        </div>
+        <div id="lockOptions" style="display:none;">
+          <div class="lock-settings-row" id="bioRow" style="display:none;">
+            <div class="lbl">Fingerprint / face unlock<small>Uses your phone's own screen-lock biometrics</small></div>
+            <button class="toggle-switch" id="bioToggle" aria-label="Biometric unlock"></button>
+          </div>
+          <div class="lock-settings-row" style="border-bottom:none;">
+            <div class="lbl">Change PIN or pattern</div>
+            <button class="btn btn-outline" style="width:auto; padding:9px 16px;" id="lockChangeBtn">Change</button>
+          </div>
+        </div>
+        <div class="error-text" id="settingsError" style="display:none; margin-top:8px;"></div>
+
+        <div class="section-label">Backup</div>
+        <button class="btn btn-outline" id="backupBtn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 21h16"/></svg>
+          Download full backup
+        </button>
+        <div class="hint" id="backupHint"></div>
+        <div class="hint">To restore: Export tab → Import entries → choose the backup file. Entries already in the app are skipped, so it's safe to import twice.</div>
+
+        <div class="section-label">Where your data is saved</div>
+        <div class="hint" id="storageInfo" style="margin-top:0;"></div>
+
+        <div class="modal-actions"><button class="btn btn-primary" id="settingsCloseBtn">Done</button></div>
+      </div>
+    </div>
+
+    <!-- LOCK SETUP SHEET -->
+    <div class="modal-overlay" id="lockSetupOverlay" style="z-index:120;">
+      <div class="modal-sheet dark" style="text-align:center;">
+        <div class="modal-title" id="setupTitle">Set up app lock</div>
+        <div class="cat-grid" id="setupMethodGrid" style="justify-content:center; margin-bottom:12px;"></div>
+        <div class="hint" id="setupHint" style="margin:0 0 16px;"></div>
+        <div id="setupPinArea">
+          <div class="lock-dots" id="setupDots"></div>
+          <div class="keypad" id="setupKeypad"></div>
+        </div>
+        <div id="setupPatternArea" style="display:none;">
+          <div class="pattern-grid" id="setupPatternGrid"><svg class="pattern-svg" id="setupPatternSvg"></svg></div>
+        </div>
+        <div class="lock-error" id="setupError"></div>
+        <div class="modal-actions"><button class="btn btn-outline" id="setupCancelBtn">Cancel</button></div>
+      </div>
+    </div>
+
+    <!-- INCOME EDIT -->
+    <div class="modal-overlay" id="incEditOverlay">
+      <div class="modal-sheet">
+        <div class="modal-title">Edit income</div>
+        <div class="amount-row"><span class="currency">₹</span><input id="incEditAmount" class="big-amount" type="number" inputmode="decimal" step="0.01" /></div>
+        <input id="incEditNote" class="line-input" type="text" placeholder="From whom / note (optional)" />
+        <input type="date" id="incEditDate" class="date-input" style="width:100%; margin-bottom:16px; flex:none;" />
+        <div class="cat-grid" id="incEditTypeGrid"></div>
+        <div class="error-text" id="incEditError" style="display:none;"></div>
+        <div class="modal-actions">
+          <button class="btn btn-outline" id="incEditCancel">Cancel</button>
+          <button class="btn btn-primary" id="incEditSave">Save changes</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- GENERIC CONFIRM -->
+    <div class="modal-overlay" id="askOverlay">
+      <div class="confirm-card">
+        <div class="modal-title" id="askTitle">Are you sure?</div>
+        <p id="askText"></p>
+        <div class="modal-actions">
+          <button class="btn btn-outline" id="askCancel">Cancel</button>
+          <button class="btn btn-danger" id="askOk">OK</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- PRIVACY COVER (shown while app is in the background) -->
+    <div class="privacy-cover" id="privacyCover"><div class="lock-wordmark">LEDGER</div></div>
+
+    <!-- LOCK SCREEN -->
+    <div class="lock-screen" id="lockScreen">
+      <div class="lock-wordmark">LEDGER</div>
+      <div class="lock-sub" id="lockSub">Enter your code to continue</div>
+      <button class="biometric-btn" id="lockBioBtn" style="display:none;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 11a3 3 0 013 3v1a7 7 0 01-1.5 4.3M9 20.5A9 9 0 0121 14v-2a9 9 0 00-15.3-6.4M4.5 9A9 9 0 004 12v1a9 9 0 001.5 5M12 3a9 9 0 016.4 2.6M8 14a4 4 0 018 0v1a5 5 0 01-1 3"/></svg>
+        Use fingerprint / face
+      </button>
+      <div id="lockPinArea">
+        <div class="lock-dots" id="lockDots"></div>
+        <div class="keypad" id="lockKeypad"></div>
+      </div>
+      <div id="lockPatternArea" style="display:none;">
+        <div class="pattern-grid" id="lockPatternGrid"><svg class="pattern-svg" id="lockPatternSvg"></svg></div>
+      </div>
+      <div class="lock-error" id="lockError"></div>
+      <button class="lock-link" id="lockCancelBtn" style="display:none;">Cancel</button>
+      <button class="lock-link" id="lockForgotBtn">Forgot code?</button>
+    </div>
+  </main>
+
+  <nav class="bottomnav">
+    <button class="nav-btn active" data-view="add">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+      <span>Add</span>
+    </button>
+    <button class="nav-btn" data-view="history">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
+      <span>History</span>
+    </button>
+    <button class="nav-btn" data-view="income">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7a2 2 0 012-2h13v4"/><path d="M3 7v11a2 2 0 002 2h15V9H5a2 2 0 01-2-2z"/><circle cx="16.5" cy="14.5" r="1"/></svg>
+      <span>Income</span>
+    </button>
+    <button class="nav-btn" data-view="scan">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7V5a1 1 0 011-1h2M4 17v2a1 1 0 001 1h2M20 7V5a1 1 0 00-1-1h-2M20 17v2a1 1 0 01-1 1h-2"/><circle cx="12" cy="12" r="3.5"/></svg>
+      <span>Scan</span>
+    </button>
+    <button class="nav-btn" data-view="export">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 21h16"/></svg>
+      <span>Export</span>
+    </button>
+  </nav>
+
+  <div class="copied-toast" id="toast">Copied to clipboard</div>
+</div>
+
+<script src="pdf-lib.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<script type="text/plain" id="appsrc">
+/* ---------- Categories ---------- */
+const ICONS = {
+  food: '<path d="M18 8h1a4 4 0 010 8h-1"/><path d="M2 8h16v9a4 4 0 01-4 4H6a4 4 0 01-4-4V8z"/><path d="M6 1v3M10 1v3M14 1v3"/>',
+  transport: '<rect x="3" y="9" width="18" height="8" rx="2"/><circle cx="7.5" cy="19" r="1.5"/><circle cx="16.5" cy="19" r="1.5"/><path d="M5 9l1.5-4.5A2 2 0 018.4 3h7.2a2 2 0 011.9 1.5L19 9"/>',
+  metro: '<rect x="5" y="3" width="14" height="13" rx="4"/><path d="M5 11h14"/><circle cx="9" cy="15" r="1"/><circle cx="15" cy="15" r="1"/><path d="M8 19l-2 3M16 19l2 3"/>',
+  shopping: '<path d="M6 2l1.5 4h9L18 2"/><path d="M3.5 6h17l-1.4 13.1A2 2 0 0117.1 21H6.9a2 2 0 01-2-1.9L3.5 6z"/><path d="M9 10a3 3 0 006 0"/>',
+  bills: '<path d="M6 2h9l3 3v17H6z"/><path d="M9 8h6M9 12h6M9 16h4"/>',
+  health: '<path d="M20.8 4.6a5.5 5.5 0 00-7.8 0L12 5.6l-1-1a5.5 5.5 0 00-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 000-7.8z"/>',
+  fun: '<rect x="2" y="6" width="20" height="12" rx="2"/><path d="M12 9v6M8 12h8"/>',
+  other: '<circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 115 .5c0 1.5-2.5 1.8-2.5 3.5M12 17h.01"/>'
+};
+const CATEGORIES = [
+  {id:'food', label:'Food'},
+  {id:'transport', label:'Transport'},
+  {id:'metro', label:'Metro Card'},
+  {id:'shopping', label:'Shopping'},
+  {id:'bills', label:'Bills'},
+  {id:'health', label:'Health'},
+  {id:'fun', label:'Fun'},
+  {id:'other', label:'Other'}
+];
+const catInfo = id => CATEGORIES.find(c=>c.id===id) || CATEGORIES[CATEGORIES.length-1];
+const catIconSvg = id => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${ICONS[id]||ICONS.other}</svg>`;
+
+/* ---------- Payment modes ---------- */
+const PAYMENT_ICONS = {
+  upi: '<path d="M4 12h16"/><path d="M4 12l6-7M4 12l6 7"/><path d="M20 12l-6-7M20 12l-6 7"/>',
+  cash: '<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="3"/><path d="M6 9v.01M18 15v.01"/>',
+  debit: '<rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/>',
+  credit: '<rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/><path d="M6 15h4"/>',
+  other: '<circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 115 .5c0 1.5-2.5 1.8-2.5 3.5M12 17h.01"/>'
+};
+const PAYMENT_MODES = [
+  {id:'upi', label:'UPI'},
+  {id:'cash', label:'Cash'},
+  {id:'debit', label:'Debit card'},
+  {id:'credit', label:'Credit card'},
+  {id:'other', label:'Other'}
+];
+const paymentInfo = id => PAYMENT_MODES.find(p=>p.id===id) || PAYMENT_MODES[0];
+const paymentIconSvg = id => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${PAYMENT_ICONS[id]||PAYMENT_ICONS.other}</svg>`;
+
+/* ---------- Sections (for grouped exports: Travel / Food / Other) ---------- */
+const SECTION_MAP = { transport:'Travel', metro:'Travel', food:'Food', shopping:'Other', bills:'Other', health:'Other', fun:'Other', other:'Other' };
+const SECTION_ORDER = ['Travel','Food','Other'];
+const sectionOf = catId => SECTION_MAP[catId] || 'Other';
+const GROUP_MODES = [
+  {id:'day', label:'By day'},
+  {id:'section', label:'By section'}
+];
+let exportGroupMode = 'day';
+
+/* ---------- Storage ---------- */
+const STORE_KEY = 'ledger_expenses_v1';
+let entries = JSON.parse(LS.getItem(STORE_KEY) || '[]');
+let selectedCategory = 'food';
+let selectedPayment = 'upi';
+let categoryManuallySet = false;
+
+/* One-time migration: existing "Transport" entries that are really metro rides/top-ups
+   move to their own "Metro Card" category so past data lines up with the new category. */
+(function migrateMetroCategory(){
+  if(LS.getItem('ledger_metro_migrated_v1')) return;
+  let changed = false;
+  entries.forEach(e=>{
+    if(e.category==='transport' && /\b(metro|vsc|dmrc|smart card)\b/i.test(e.note||'')){
+      e.category = 'metro';
+      changed = true;
+    }
+  });
+  if(changed) LS.setItem(STORE_KEY, JSON.stringify(entries));
+  LS.setItem('ledger_metro_migrated_v1', '1');
+})();
+
+function save(){ LS.setItem(STORE_KEY, JSON.stringify(entries)); render(); }
+
+/* ---------- Helpers ---------- */
+function todayISO(){
+  const d = new Date();
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+  return d.toISOString().slice(0,10);
+}
+function money(n){ return n.toLocaleString('en-US',{minimumFractionDigits:2, maximumFractionDigits:2}); }
+function fmtDateHeading(iso){
+  const [y,m,d] = iso.split('-').map(Number);
+  const date = new Date(y, m-1, d);
+  const today = todayISO();
+  const yestD = new Date(); yestD.setDate(yestD.getDate()-1);
+  const yest = yestD.toISOString().slice(0,10);
+  if(iso === today) return 'TODAY';
+  if(iso === yest) return 'YESTERDAY';
+  return date.toLocaleDateString('en-US',{weekday:'short', month:'short', day:'numeric'}).toUpperCase();
+}
+function weekdayFull(iso){
+  const [y,m,d] = iso.split('-').map(Number);
+  return new Date(y,m-1,d).toLocaleDateString('en-US',{weekday:'long'});
+}
+
+/* ---------- Category picker (Add view) ---------- */
+const catGrid = document.getElementById('catGrid');
+CATEGORIES.forEach(c=>{
+  const b = document.createElement('button');
+  b.type='button'; b.className='cat-pill'+(c.id===selectedCategory?' selected':'');
+  b.dataset.cat = c.id;
+  b.innerHTML = catIconSvg(c.id) + c.label;
+  b.onclick = ()=>{
+    selectedCategory = c.id;
+    categoryManuallySet = true;
+    catGrid.querySelectorAll('.cat-pill').forEach(el=>el.classList.remove('selected'));
+    b.classList.add('selected');
+    updateMetroUI();
+  };
+  catGrid.appendChild(b);
+});
+
+/* ---------- Payment mode picker (Add view) ---------- */
+const paymentGrid = document.getElementById('paymentGrid');
+PAYMENT_MODES.forEach(p=>{
+  const b = document.createElement('button');
+  b.type='button'; b.className='pay-pill'+(p.id===selectedPayment?' selected':'');
+  b.dataset.pay = p.id;
+  b.innerHTML = paymentIconSvg(p.id) + p.label;
+  b.onclick = ()=>{
+    selectedPayment = p.id;
+    paymentGrid.querySelectorAll('.pay-pill').forEach(el=>el.classList.remove('selected'));
+    b.classList.add('selected');
+  };
+  paymentGrid.appendChild(b);
+});
+function selectPayment(id){
+  selectedPayment = id;
+  paymentGrid.querySelectorAll('.pay-pill').forEach(el=>{
+    el.classList.toggle('selected', el.dataset.pay===id);
+  });
+}
+
+/* ---------- Add entry ---------- */
+const amountInput = document.getElementById('amountInput');
+const noteInput = document.getElementById('noteInput');
+const errorText = document.getElementById('errorText');
+const entryDateInput = document.getElementById('entryDateInput');
+
+entryDateInput.max = todayISO();
+entryDateInput.value = todayISO();
+updateDateQuickButtons();
+
+function updateDateQuickButtons(){
+  const val = entryDateInput.value;
+  const yestD = new Date(); yestD.setDate(yestD.getDate()-1);
+  const yest = yestD.toISOString().slice(0,10);
+  document.getElementById('dateQuickToday').classList.toggle('selected', val===todayISO());
+  document.getElementById('dateQuickYesterday').classList.toggle('selected', val===yest);
+}
+document.getElementById('dateQuickToday').onclick = ()=>{ entryDateInput.value = todayISO(); updateDateQuickButtons(); renderHome(); };
+document.getElementById('dateQuickYesterday').onclick = ()=>{
+  const d = new Date(); d.setDate(d.getDate()-1);
+  entryDateInput.value = d.toISOString().slice(0,10);
+  updateDateQuickButtons(); renderHome();
+};
+entryDateInput.addEventListener('change', ()=>{ updateDateQuickButtons(); renderHome(); });
+
+function selectCategory(id){
+  selectedCategory = id;
+  catGrid.querySelectorAll('.cat-pill').forEach(el=>{
+    el.classList.toggle('selected', el.dataset.cat===id);
+  });
+  updateMetroUI();
+}
+
+noteInput.addEventListener('input', ()=>{
+  if(categoryManuallySet) return;
+  const val = noteInput.value.trim();
+  if(!val) return;
+  selectCategory(guessCategory(val));
+});
+
+document.getElementById('logBtn').onclick = ()=>{
+  const val = parseFloat(amountInput.value);
+  if(!val || val <= 0){
+    errorText.textContent = 'Enter an amount above zero.';
+    errorText.style.display='block';
+    amountInput.focus();
+    return;
+  }
+  const chosenDate = entryDateInput.value || todayISO();
+  errorText.style.display='none';
+  entries.unshift({
+    id: Date.now()+'-'+Math.random().toString(36).slice(2,7),
+    amount: val,
+    note: noteInput.value.trim(),
+    category: selectedCategory,
+    payment: (selectedCategory==='metro' && metroKind==='fare') ? 'other' : selectedPayment,
+    ...(selectedCategory==='metro' ? {metroCard, metroKind} : {}),
+    date: chosenDate,
+    ts: Date.now()
+  });
+  amountInput.value=''; noteInput.value='';
+  categoryManuallySet = false;
+  selectCategory('food');
+  selectPayment('upi');
+  save();
+  amountInput.focus();
+};
+
+/* ---------- Voice entry ---------- */
+const SpeechRecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition;
+const voiceBtn = document.getElementById('voiceBtn');
+const voiceStatus = document.getElementById('voiceStatus');
+let recognition = null;
+let isListening = false;
+
+function showVoiceStatus(text){
+  voiceStatus.textContent = text;
+  voiceStatus.style.display = 'block';
+}
+
+function parseVoiceEntry(transcriptRaw){
+  let text = ' '+transcriptRaw.toLowerCase().trim()+' ';
+  let date = null;
+
+  if(/\btoday\b/.test(text)){
+    date = todayISO();
+    text = text.replace(/\btoday\b/, ' ');
+  } else if(/\byesterday\b/.test(text)){
+    const d = new Date(); d.setDate(d.getDate()-1);
+    date = d.toISOString().slice(0,10);
+    text = text.replace(/\byesterday\b/, ' ');
+  } else {
+    const dInfo = tryParseDate(text);
+    if(dInfo){ date = dInfo.date; text = text.replace(dInfo.match, ' '); }
+  }
+  if(!date) date = todayISO();
+
+  const amtInfo = tryParseAmount(text);
+  let amount = null;
+  if(amtInfo){ amount = amtInfo.value; text = text.replace(amtInfo.match, ' '); }
+
+  const payment = guessPayment(text);
+
+  text = text.replace(/\b(rupees?|rs\.?|inr|for|on|of|spent|spend|paid|please|add|entry|expense|an|via|by|using|through)\b/gi, ' ');
+  text = text.replace(/\b(credit card|debit card|credit|debit|cash|upi|gpay|google pay|phonepe|paytm|bhim|card)\b/gi, ' ');
+  text = text.replace(/\s{2,}/g, ' ').trim();
+  text = text.replace(/^[\-•.,:\s]+|[\-•.,:\s]+$/g, '');
+  if(text) text = text.charAt(0).toUpperCase() + text.slice(1);
+
+  const category = guessCategory(text);
+  return { date, amount, note: text, category, payment };
+}
+
+function applyVoiceResult(transcript){
+  const parsed = parseVoiceEntry(transcript);
+  entryDateInput.value = parsed.date;
+  updateDateQuickButtons();
+  if(parsed.amount){ amountInput.value = parsed.amount; }
+  noteInput.value = parsed.note;
+  selectCategory(parsed.category);
+  selectPayment(parsed.payment);
+  renderHome();
+
+  if(parsed.amount){
+    showVoiceStatus(`Heard: "${transcript}" — check the fields below, then tap Log it.`);
+  } else {
+    showVoiceStatus(`Heard: "${transcript}" — couldn't catch an amount, please fill it in.`);
+    amountInput.focus();
+  }
+}
+
+if(!SpeechRecognitionCtor){
+  voiceBtn.onclick = ()=>{
+    showVoiceStatus("Voice input isn't supported in this browser — try Chrome on Android, or enter it manually below.");
+  };
+} else {
+  recognition = new SpeechRecognitionCtor();
+  recognition.lang = 'en-IN';
+  recognition.interimResults = false;
+  recognition.maxAlternatives = 1;
+  recognition.continuous = false;
+
+  recognition.onstart = ()=>{
+    isListening = true;
+    voiceBtn.classList.add('listening');
+    voiceBtn.querySelector('svg').outerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 15a3 3 0 003-3V6a3 3 0 00-6 0v6a3 3 0 003 3z"/><path d="M19 11a7 7 0 01-14 0M12 18v3"/></svg>';
+    voiceBtn.lastChild.textContent = ' Listening… tap to stop';
+    showVoiceStatus('Listening — say something like "50 rupees for lunch today".');
+  };
+  recognition.onresult = (event)=>{
+    const transcript = event.results[0][0].transcript;
+    applyVoiceResult(transcript);
+  };
+  recognition.onerror = (event)=>{
+    if(event.error === 'not-allowed' || event.error === 'service-not-allowed'){
+      showVoiceStatus("Microphone access was blocked — allow it in your browser's site settings to use voice entry.");
+    } else if(event.error === 'no-speech'){
+      showVoiceStatus("Didn't catch that — tap Speak an entry and try again.");
+    } else {
+      showVoiceStatus("Something went wrong listening — try again.");
+    }
+  };
+  recognition.onend = ()=>{
+    isListening = false;
+    voiceBtn.classList.remove('listening');
+    voiceBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 15a3 3 0 003-3V6a3 3 0 00-6 0v6a3 3 0 003 3z"/><path d="M19 11a7 7 0 01-14 0M12 18v3"/></svg> Speak an entry';
+  };
+
+  voiceBtn.onclick = ()=>{
+    if(isListening){ recognition.stop(); return; }
+    try{ recognition.start(); }
+    catch(err){ showVoiceStatus('Could not start listening — try again.'); }
+  };
+}
+[amountInput, noteInput].forEach(el=>{
+  el.addEventListener('keydown', e=>{ if(e.key==='Enter') document.getElementById('logBtn').click(); });
+});
+
+function removeEntry(id){
+  entries = entries.filter(e=>e.id!==id);
+  save();
+}
+
+/* ---------- Entry row renderer ---------- */
+function entryRowHTML(e){
+  const meta = entryMeta(e);
+  return `<div class="entry-row" data-id="${e.id}">
+    <div class="entry-main" data-edit="${e.id}">
+      <div class="entry-icon">${catIconSvg(e.category)}</div>
+      <div class="entry-note">${e.note ? escapeHTML(e.note) : catInfo(e.category).label}<div class="entry-cat">${meta}</div></div>
+      <div class="entry-amount">₹${money(e.amount)}</div>
+    </div>
+    <button class="del-btn" data-del="${e.id}">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
+    </button>
+  </div>`;
+}
+function escapeHTML(s){ return s.replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+
+/* Tapping an entry opens Edit; tapping the ✕ asks for confirmation before deleting. */
+function attachDeleteHandlers(container){
+  container.querySelectorAll('[data-del]').forEach(btn=>{
+    btn.onclick = ()=> openConfirmDelete(btn.dataset.del);
+  });
+  container.querySelectorAll('[data-edit]').forEach(row=>{
+    row.onclick = ()=> openEditModal(row.dataset.edit);
+  });
+}
+
+/* ---------- Edit entry modal ---------- */
+let editingId = null;
+let editSelectedCategory = 'food';
+let editSelectedPayment = 'upi';
+
+const editOverlay = document.getElementById('editOverlay');
+const editAmountInput = document.getElementById('editAmountInput');
+const editNoteInput = document.getElementById('editNoteInput');
+const editDateInput = document.getElementById('editDateInput');
+const editErrorText = document.getElementById('editErrorText');
+editDateInput.max = todayISO();
+
+const editCatGrid = document.getElementById('editCatGrid');
+CATEGORIES.forEach(c=>{
+  const b = document.createElement('button');
+  b.type='button'; b.className='cat-pill';
+  b.dataset.cat = c.id;
+  b.innerHTML = catIconSvg(c.id) + c.label;
+  b.onclick = ()=>{
+    editSelectedCategory = c.id;
+    editCatGrid.querySelectorAll('.cat-pill').forEach(el=>el.classList.remove('selected'));
+    b.classList.add('selected');
+    updateEditMetroUI();
+  };
+  editCatGrid.appendChild(b);
+});
+
+const editPayGrid = document.getElementById('editPayGrid');
+PAYMENT_MODES.forEach(p=>{
+  const b = document.createElement('button');
+  b.type='button'; b.className='pay-pill';
+  b.dataset.pay = p.id;
+  b.innerHTML = paymentIconSvg(p.id) + p.label;
+  b.onclick = ()=>{
+    editSelectedPayment = p.id;
+    editPayGrid.querySelectorAll('.pay-pill').forEach(el=>el.classList.remove('selected'));
+    b.classList.add('selected');
+  };
+  editPayGrid.appendChild(b);
+});
+
+function openEditModal(id){
+  const entry = entries.find(e=>e.id===id);
+  if(!entry) return;
+  editingId = id;
+  editAmountInput.value = entry.amount;
+  editNoteInput.value = entry.note || '';
+  editDateInput.value = entry.date;
+  editSelectedCategory = entry.category;
+  editSelectedPayment = entry.payment || 'upi';
+  editCatGrid.querySelectorAll('.cat-pill').forEach(el=>el.classList.toggle('selected', el.dataset.cat===editSelectedCategory));
+  editPayGrid.querySelectorAll('.pay-pill').forEach(el=>el.classList.toggle('selected', el.dataset.pay===editSelectedPayment));
+  editErrorText.style.display = 'none';
+  loadEditMetro(entry);
+  editOverlay.classList.add('show');
+}
+function closeEditModal(){
+  editOverlay.classList.remove('show');
+  editingId = null;
+}
+document.getElementById('editCancelBtn').onclick = closeEditModal;
+document.getElementById('editSaveBtn').onclick = ()=>{
+  const amount = parseFloat(editAmountInput.value);
+  const date = editDateInput.value;
+  if(!amount || amount<=0){ editErrorText.textContent = 'Enter an amount greater than 0.'; editErrorText.style.display='block'; return; }
+  if(!date){ editErrorText.textContent = 'Pick a date.'; editErrorText.style.display='block'; return; }
+  const entry = entries.find(e=>e.id===editingId);
+  if(!entry) { closeEditModal(); return; }
+  entry.amount = amount;
+  entry.note = editNoteInput.value.trim();
+  entry.date = date;
+  entry.category = editSelectedCategory;
+  entry.payment = editSelectedPayment;
+  applyMetroFields(entry);
+  save();
+  populateExportMonths();
+  closeEditModal();
+};
+
+/* ---------- Delete confirmation dialog ---------- */
+let pendingDeleteId = null;
+const confirmOverlay = document.getElementById('confirmOverlay');
+const confirmEntryDesc = document.getElementById('confirmEntryDesc');
+
+function openConfirmDelete(id){
+  const entry = entries.find(e=>e.id===id);
+  if(!entry) return;
+  pendingDeleteId = id;
+  const label = entry.note ? entry.note : catInfo(entry.category).label;
+  confirmEntryDesc.textContent = `${label} — ₹${money(entry.amount)}. This can't be undone.`;
+  confirmOverlay.classList.add('show');
+}
+function closeConfirmDelete(){
+  confirmOverlay.classList.remove('show');
+  pendingDeleteId = null;
+}
+document.getElementById('confirmCancelBtn').onclick = closeConfirmDelete;
+document.getElementById('confirmDeleteBtn').onclick = ()=>{
+  if(pendingDeleteId) removeEntry(pendingDeleteId);
+  closeConfirmDelete();
+};
+
+/* ---------- Render: Add/Home view ---------- */
+function renderHome(){
+  const today = todayISO();
+  const ym = today.slice(0,7);
+  const todayEntries = entries.filter(e=>e.date===today);
+  const todayTotal = todayEntries.reduce((s,e)=>s+spendAmt(e),0);
+  const monthTotal = entries.filter(e=>e.date.startsWith(ym)).reduce((s,e)=>s+spendAmt(e),0);
+  document.getElementById('todayTotal').textContent = '₹'+money(todayTotal);
+  document.getElementById('monthTotal').textContent = '₹'+money(monthTotal);
+
+  const selectedDate = entryDateInput.value || today;
+  const selectedEntries = entries.filter(e=>e.date===selectedDate);
+  document.getElementById('addListLabel').textContent =
+    selectedDate === today ? "Today's entries" : fmtDateHeading(selectedDate).charAt(0)+fmtDateHeading(selectedDate).slice(1).toLowerCase()+"'s entries";
+
+  const list = document.getElementById('todayList');
+  if(selectedEntries.length===0){
+    list.innerHTML = `<div class="empty">Nothing logged for this day yet.</div>`;
+  } else {
+    list.innerHTML = '<div class="card" style="padding:4px 14px;">'+
+      selectedEntries.sort((a,b)=>b.ts-a.ts).map(entryRowHTML).join('')+'</div>';
+    attachDeleteHandlers(list);
+  }
+}
+
+/* ---------- Render: History view ---------- */
+const searchInput = document.getElementById('searchInput');
+const monthFilter = document.getElementById('monthFilter');
+searchInput.addEventListener('input', renderHistory);
+monthFilter.addEventListener('input', renderHistory);
+
+function renderHistory(){
+  const q = searchInput.value.trim().toLowerCase();
+  const mf = monthFilter.value;
+  let filtered = entries.filter(e=>{
+    if(mf && !e.date.startsWith(mf)) return false;
+    if(q && !(e.note.toLowerCase().includes(q) || catInfo(e.category).label.toLowerCase().includes(q))) return false;
+    return true;
+  });
+  const map = {};
+  filtered.forEach(e=>{ (map[e.date] = map[e.date]||[]).push(e); });
+  const days = Object.keys(map).sort().reverse();
+
+  const container = document.getElementById('historyList');
+  if(days.length===0){
+    container.innerHTML = '<div class="empty">No matching entries.</div>';
+    return;
+  }
+  container.innerHTML = days.map(date=>{
+    const items = map[date].sort((a,b)=>b.ts-a.ts);
+    const dayTotal = items.reduce((s,e)=>s+spendAmt(e),0);
+    return `<div class="day-block">
+      <div class="day-heading"><span>${fmtDateHeading(date)}</span><span class="day-total">₹${money(dayTotal)}</span></div>
+      <div class="card" style="padding:4px 14px;">${items.map(entryRowHTML).join('')}</div>
+    </div>`;
+  }).join('');
+  attachDeleteHandlers(container);
+}
+
+/* ---------- Export view ---------- */
+function populateExportMonths(){}
+
+const groupModeGrid = document.getElementById('groupModeGrid');
+GROUP_MODES.forEach(g=>{
+  const b = document.createElement('button');
+  b.type='button'; b.className='cat-pill'+(g.id===exportGroupMode?' selected':'');
+  b.dataset.group = g.id;
+  b.textContent = g.label;
+  b.onclick = ()=>{
+    exportGroupMode = g.id;
+    document.querySelectorAll('#groupModeGrid .cat-pill').forEach(el=>el.classList.remove('selected'));
+    b.classList.add('selected');
+  };
+  groupModeGrid.appendChild(b);
+});
+
+function renderExport(){ rptSync(); }
+
+/* ---------- Import entries from a JSON backup ---------- */
+const VALID_CATS = CATEGORIES.map(c=>c.id);
+const VALID_PAYS = PAYMENT_MODES.map(p=>p.id);
+document.getElementById('importBtn').onclick = ()=> document.getElementById('importFileInput').click();
+
+document.getElementById('importFileInput').addEventListener('change', e=>{
+  const file = e.target.files[0];
+  const statusEl = document.getElementById('importStatus');
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = ev=>{
+    let data;
+    try{ data = JSON.parse(ev.target.result); }
+    catch(err){ statusEl.textContent = "That file isn't valid JSON — check it's an unedited export/backup file."; return; }
+
+    const list = Array.isArray(data) ? data : (Array.isArray(data.entries) ? data.entries : (Array.isArray(data.income) ? [] : null));
+    if(!list){ statusEl.textContent = "Couldn't find a list of entries in that file."; return; }
+
+    const dupMap = {}; let dups = 0;
+    entries.forEach(e=>{ const k=[e.date,(+e.amount).toFixed(2),e.note||'',e.category,e.payment||'upi'].join('|'); dupMap[k]=(dupMap[k]||0)+1; });
+    let added = 0, skipped = 0;
+    list.forEach((item, i)=>{
+      const amount = parseFloat(item.amount);
+      const date = typeof item.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(item.date) ? item.date : null;
+      if(!amount || amount <= 0 || !date){ skipped++; return; }
+      const category = VALID_CATS.includes(item.category) ? item.category : guessCategory(item.note||'');
+      const payment = VALID_PAYS.includes(item.payment) ? item.payment : guessPayment(item.note||'');
+      const dkey = [date,amount.toFixed(2),(item.note||'').toString().trim(),category,payment].join('|');
+      if(dupMap[dkey]>0){ dupMap[dkey]--; dups++; return; }
+      entries.push({
+        id: 'imp'+Date.now()+'-'+i+'-'+Math.random().toString(36).slice(2,5),
+        amount: amount,
+        note: (item.note||'').toString().trim(),
+        category: category,
+        payment: payment,
+        ...(category==='metro' ? { metroKind: (item.metroKind==='fare'||item.metroKind==='topup') ? item.metroKind : undefined, metroCard: item.metroCard==='physical' ? 'physical' : 'virtual' } : {}),
+        date: date,
+        ts: item.ts && typeof item.ts==='number' ? item.ts : Date.now()-i
+      });
+      added++;
+    });
+    const incAdded = importIncomeFrom(data);
+    save();
+    populateExportMonths();
+    let msg = `Imported ${added} ${added===1?'entry':'entries'}`;
+    if(incAdded) msg += ` and ${incAdded} income ${incAdded===1?'record':'records'}`;
+    msg += '.';
+    if(dups) msg += ` Skipped ${dups} already in the app.`;
+    if(skipped) msg += ` Skipped ${skipped} missing an amount or a valid date.`;
+    statusEl.textContent = msg;
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+});
+
+function buildCSV(p){
+  const items = entries.filter(e=>inPeriod(e,p)).sort((a,b)=> a.date.localeCompare(b.date) || a.ts-b.ts);
+  const total = items.reduce((s,e)=>s+spendAmt(e),0);
+  const rows = [];
+
+  if(exportGroupMode === 'section'){
+    rows.push(['Section','Date','Day','Category','Payment','Note','Amount (INR)']);
+    SECTION_ORDER.forEach(section=>{
+      const secItems = items.filter(e=> sectionOf(e.category)===section);
+      if(secItems.length===0) return;
+      secItems.forEach(e=>{
+        rows.push([section, e.date, weekdayFull(e.date), catInfo(e.category).label, paymentInfo(e.payment||'upi').label, (e.note||'')+metroTag(e), e.amount.toFixed(2)]);
+      });
+      const secTotal = secItems.reduce((s,e)=>s+spendAmt(e),0);
+      rows.push(['', '', '', '', '', section+' TOTAL', secTotal.toFixed(2)]);
+      rows.push([]);
+    });
+    rows.push(['', '', '', '', '', 'GRAND TOTAL', total.toFixed(2)]);
+  } else {
+    rows.push(['Date','Day','Category','Payment','Note','Amount (INR)']);
+    items.forEach(e=>{
+      rows.push([e.date, weekdayFull(e.date), catInfo(e.category).label, paymentInfo(e.payment||'upi').label, (e.note||'')+metroTag(e), e.amount.toFixed(2)]);
+    });
+    rows.push([]);
+    rows.push(['','','','','TOTAL', total.toFixed(2)]);
+  }
+  return rows.map(r=> r.map(csvCell).join(',')).join('\r\n');
+}
+function csvCell(v){
+  v = String(v);
+  if(/[",\r\n]/.test(v)) return '"'+v.replace(/"/g,'""')+'"';
+  return v;
+}
+
+function csvBlob(ym){
+  return new Blob([buildCSV(ym)], {type:'text/csv;charset=utf-8;'});
+}
+function downloadBlob(blob, filename){
+  if(window.LedgerNative && LedgerNative.available()){ LedgerNative.saveFile(blob, filename).catch(e=>alert('Could not save the file: '+(e&&e.message||e))); return; }
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+
+/* ---------- Receipt image ---------- */
+function monthLabel(ym){
+  const [y,mo] = ym.split('-');
+  return new Date(y, mo-1, 1).toLocaleDateString('en-US',{month:'long', year:'numeric'});
+}
+
+function drawReceipt(p){
+  const items = entries.filter(e=>inPeriod(e,p)).sort((a,b)=> a.date.localeCompare(b.date) || a.ts-b.ts);
+  const total = items.reduce((s,e)=>s+spendAmt(e),0);
+
+  let groups;
+  if(exportGroupMode === 'section'){
+    groups = SECTION_ORDER.map(section=>({
+      label: section,
+      items: items.filter(e=> sectionOf(e.category)===section)
+    })).filter(g=>g.items.length>0);
+  } else {
+    const byDate = {};
+    items.forEach(e=>{ (byDate[e.date]=byDate[e.date]||[]).push(e); });
+    groups = Object.keys(byDate).sort().map(d=>({ label: fmtDateHeading(d), items: byDate[d] }));
+  }
+
+  function itemLabel(e){
+    const base = e.note ? e.note : catInfo(e.category).label;
+    if(exportGroupMode === 'section'){
+      return `${fmtDateHeading(e.date)} — ${base}  ·  ${paymentInfo(e.payment||'upi').label}`;
+    }
+    return `${base}  ·  ${catInfo(e.category).label}  ·  ${paymentInfo(e.payment||'upi').label}`;
+  }
+
+  const W = 480;
+  const PAD = 28;
+  const rowH = 24;
+  const groupHeadH = 30;
+  let height = 150;
+  groups.forEach(g=> height += groupHeadH + g.items.length*rowH + 6);
+  height += 60;
+  if(groups.length===0) height = 260;
+
+  const canvas = document.getElementById('receiptCanvas');
+  const scale = Math.max(0.5, Math.min(2, 15000/height));
+  canvas.width = W*scale; canvas.height = height*scale;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(scale, scale);
+
+  ctx.fillStyle = '#F3EAD9';
+  ctx.fillRect(0,0,W,height);
+
+  ctx.textBaseline = 'alphabetic';
+  ctx.fillStyle = '#2B2118';
+  ctx.font = "bold 22px 'Special Elite', monospace";
+  ctx.textAlign = 'center';
+  ctx.fillText('LEDGER', W/2, 42);
+  ctx.font = "12px Inter, sans-serif";
+  ctx.fillStyle = '#8A7A57';
+  const subtitle = (p.label + (p.kind==='range'||p.kind==='week'||p.kind==='all' ? '  ·  '+fmtShort(p.from)+' - '+fmtShort(p.to)+' '+dateOf(p.to).getFullYear() : '')).toUpperCase() + (exportGroupMode==='section' ? '  ·  BY SECTION' : '');
+  ctx.fillText(subtitle, W/2, 60);
+
+  ctx.strokeStyle = '#D8C9AC';
+  ctx.beginPath(); ctx.moveTo(PAD, 76); ctx.lineTo(W-PAD, 76); ctx.stroke();
+
+  let y = 76;
+
+  if(groups.length===0){
+    ctx.font = "italic 14px Inter, sans-serif";
+    ctx.fillStyle = '#8A7A57';
+    ctx.textAlign = 'center';
+    ctx.fillText('No entries in this period.', W/2, y+50);
+    y += 90;
+  } else {
+    groups.forEach(g=>{
+      y += groupHeadH;
+      ctx.font = "bold 11px Inter, sans-serif";
+      ctx.fillStyle = '#8A7A57';
+      ctx.textAlign = 'left';
+      ctx.fillText(g.label.toUpperCase(), PAD, y);
+      const groupTotal = g.items.reduce((s,e)=>s+spendAmt(e),0);
+      ctx.textAlign = 'right';
+      ctx.fillStyle = '#5B6470';
+      ctx.font = "12px 'IBM Plex Mono', monospace";
+      ctx.fillText('₹'+money(groupTotal), W-PAD, y);
+
+      g.items.forEach(e=>{
+        y += rowH;
+        ctx.textAlign = 'left';
+        ctx.fillStyle = '#2B2118';
+        ctx.font = "13px Inter, sans-serif";
+        ctx.fillText(truncate(ctx, itemLabel(e), W - PAD*2 - 90), PAD, y);
+        ctx.textAlign = 'right';
+        ctx.font = "13px 'IBM Plex Mono', monospace";
+        ctx.fillText('₹'+money(e.amount), W-PAD, y);
+      });
+      y += 10;
+      ctx.strokeStyle = '#E4D6BA';
+      ctx.setLineDash([2,3]);
+      ctx.beginPath(); ctx.moveTo(PAD, y); ctx.lineTo(W-PAD, y); ctx.stroke();
+      ctx.setLineDash([]);
+    });
+  }
+
+  y += 34;
+  ctx.strokeStyle = '#2B2118';
+  ctx.setLineDash([]);
+  ctx.beginPath(); ctx.moveTo(PAD, y-24); ctx.lineTo(W-PAD, y-24); ctx.stroke();
+  ctx.textAlign = 'left';
+  ctx.font = "bold 15px Inter, sans-serif";
+  ctx.fillStyle = '#2B2118';
+  ctx.fillText('TOTAL', PAD, y);
+  ctx.textAlign = 'right';
+  ctx.font = "bold 18px 'IBM Plex Mono', monospace";
+  ctx.fillText('₹'+money(total), W-PAD, y);
+
+  return canvas;
+}
+function truncate(ctx, text, maxWidth){
+  if(ctx.measureText(text).width <= maxWidth) return text;
+  while(text.length>0 && ctx.measureText(text+'…').width > maxWidth){ text = text.slice(0,-1); }
+  return text+'…';
+}
+
+function canvasToBlob(canvas){
+  return new Promise(res=> canvas.toBlob(res, 'image/png'));
+}
+
+
+/* ---------- Scan old notes (OCR) ---------- */
+let scanRows = [];
+let scanRowSeq = 0;
+const CAT_KEYWORDS = {
+  food: ['food','lunch','dinner','breakfast','tea','coffee','snack','restaurant','zomato','swiggy','grocery','groceries','milk','egg','veg','vegetable','vegetables','fruit','pizza','pasta','burger','banana','lassi','chaach','coke','ice cream','icecream','juice','sandwich','bread','rice','biryani','chai','water'],
+  metro: ['metro','vsc','dmrc','smart card','delhi metro'],
+  transport: ['bus','taxi','uber','ola','auto','fuel','petrol','diesel','train','cab','parking','toll','rickshaw','rapido'],
+  bills: ['bill','recharge','electricity','wifi','internet','rent','emi','phone','mobile','gas','water bill'],
+  health: ['medicine','doctor','hospital','pharmacy','clinic','tablet','chemist','creatine','protein','supplement','vitamin','gym'],
+  fun: ['movie','cinema','game','outing','party','netflix','subscription'],
+  shopping: ['shop','cloth','shoes','shirt','amazon','flipkart','mall','dress','copies','copy','stationery','notebook','book']
+};
+const PAY_KEYWORDS = {
+  cash: ['cash'],
+  credit: ['credit card','credit'],
+  debit: ['debit card','debit','card'],
+  upi: ['upi','gpay','google pay','phonepe','paytm','bhim']
+};
+function guessPayment(note){
+  const t = (note||'').toLowerCase();
+  for(const [pay, words] of Object.entries(PAY_KEYWORDS)){
+    if(words.some(w=>t.includes(w))) return pay;
+  }
+  return 'upi';
+}
+function guessCategory(note){
+  const t = note.toLowerCase();
+  for(const [cat, words] of Object.entries(CAT_KEYWORDS)){
+    if(words.some(w=>t.includes(w))) return cat;
+  }
+  return 'other';
+}
+function isValidISO(iso){
+  const d = new Date(iso+'T00:00:00');
+  return !isNaN(d.getTime());
+}
+const MONTHS_RE = 'jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t|tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?';
+const MONTH_INDEX = {jan:0,feb:1,mar:2,apr:3,may:4,jun:5,jul:6,aug:7,sep:8,oct:9,nov:10,dec:11};
+function monthToIndex(name){ return MONTH_INDEX[name.slice(0,3).toLowerCase()]; }
+
+function tryParseDate(line){
+  let m = line.match(/\b(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})\b/);
+  if(m){
+    let d = m[1].padStart(2,'0'), mo = m[2].padStart(2,'0'), y = m[3];
+    y = y.length===2 ? '20'+y : y;
+    const iso = `${y}-${mo}-${d}`;
+    if(isValidISO(iso)) return {date: iso, match: m[0]};
+  }
+  const reMD = new RegExp('\\b(\\d{1,2})(?:st|nd|rd|th)?\\s+('+MONTHS_RE+')\\b','i');
+  m = line.match(reMD);
+  if(m){
+    const day = m[1].padStart(2,'0');
+    const mo = String(monthToIndex(m[2])+1).padStart(2,'0');
+    let y = new Date().getFullYear();
+    let iso = `${y}-${mo}-${day}`;
+    if(iso > todayISO()) { y -= 1; iso = `${y}-${mo}-${day}`; }
+    if(isValidISO(iso)) return {date: iso, match: m[0]};
+  }
+  const reDM = new RegExp('\\b('+MONTHS_RE+')\\s+(\\d{1,2})(?:st|nd|rd|th)?\\b','i');
+  m = line.match(reDM);
+  if(m){
+    const day = m[2].padStart(2,'0');
+    const mo = String(monthToIndex(m[1])+1).padStart(2,'0');
+    let y = new Date().getFullYear();
+    let iso = `${y}-${mo}-${day}`;
+    if(iso > todayISO()) { y -= 1; iso = `${y}-${mo}-${day}`; }
+    if(isValidISO(iso)) return {date: iso, match: m[0]};
+  }
+  m = line.match(/\b(\d{1,2})[\/\-](\d{1,2})\b/);
+  if(m){
+    const day = m[1].padStart(2,'0'), mo = m[2].padStart(2,'0');
+    let y = new Date().getFullYear();
+    let iso = `${y}-${mo}-${day}`;
+    if(isValidISO(iso)){
+      if(iso > todayISO()) { y -= 1; iso = `${y}-${mo}-${day}`; }
+      return {date: iso, match: m[0]};
+    }
+  }
+  return null;
+}
+function tryParseAmount(line){
+  const matches = [...line.matchAll(/(?:₹|rs\.?|inr)?\s?(\d{1,3}(?:,\d{2,3})*(?:\.\d{1,2})?)/gi)];
+  if(matches.length===0) return null;
+  let best = null, bestVal = -1;
+  for(const m of matches){
+    const val = parseFloat(m[1].replace(/,/g,''));
+    if(!isNaN(val) && val > bestVal){ bestVal = val; best = {value: val, match: m[0]}; }
+  }
+  return best;
+}
+
+function parseOcrText(text){
+  const lines = text.split('\n').map(l=>l.trim()).filter(l=>l.length>0);
+  const rows = [];
+  let currentDate = todayISO();
+  lines.forEach(line=>{
+    const dateInfo = tryParseDate(line);
+    let stripped = line;
+    if(dateInfo){
+      currentDate = dateInfo.date;
+      stripped = line.replace(dateInfo.match, '').trim();
+    }
+    // Skip lines that were basically just a date/header (little else left)
+    if(dateInfo && stripped.replace(/[^a-zA-Z0-9]/g,'').length < 2) return;
+
+    const amtInfo = tryParseAmount(stripped);
+    let note = stripped;
+    if(amtInfo){ note = (stripped.slice(0, amtInfo.match ? stripped.lastIndexOf(amtInfo.match) : stripped.length) + ' ' + stripped.slice(amtInfo.match ? stripped.lastIndexOf(amtInfo.match)+amtInfo.match.length : 0)).trim(); }
+    note = note.replace(/[₹]|rs\.?|inr/gi,'').replace(/\s{2,}/g,' ').replace(/^[\-•.,:\s]+|[\-•.,:\s]+$/g,'').trim();
+    if(!amtInfo && note.length===0) return; // nothing useful on this line
+
+    rows.push({
+      id: 'scan'+(scanRowSeq++),
+      date: currentDate,
+      note: note || '(from photo)',
+      amount: amtInfo ? amtInfo.value : '',
+      category: guessCategory(note),
+      payment: guessPayment(note),
+      include: !!amtInfo
+    });
+  });
+  return rows;
+}
+
+function renderScanRows(){
+  const wrap = document.getElementById('scanRowsCard');
+  const resultsWrap = document.getElementById('scanResultsWrap');
+  if(scanRows.length===0){
+    resultsWrap.style.display = 'none';
+    return;
+  }
+  resultsWrap.style.display = 'block';
+  wrap.innerHTML = scanRows.map(r=>`
+    <div class="scan-row" data-id="${r.id}">
+      <div class="scan-row-top">
+        <input type="checkbox" class="scan-include" ${r.include?'checked':''} />
+        <div class="scan-row-fields">
+          <input type="text" class="scan-note" value="${escapeHTML(r.note)}" placeholder="What was it for?" />
+          <input type="date" class="scan-date" value="${r.date}" />
+          <input type="number" class="scan-amount" step="0.01" value="${r.amount}" placeholder="Amount" />
+          <select class="scan-cat">
+            ${CATEGORIES.map(c=>`<option value="${c.id}" ${c.id===r.category?'selected':''}>${c.label}</option>`).join('')}
+          </select>
+          <select class="scan-pay">
+            ${PAYMENT_MODES.map(p=>`<option value="${p.id}" ${p.id===r.payment?'selected':''}>${p.label}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+      <button class="scan-del" data-del="${r.id}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+  `).join('');
+
+  wrap.querySelectorAll('.scan-row').forEach(rowEl=>{
+    const id = rowEl.dataset.id;
+    const row = scanRows.find(r=>r.id===id);
+    rowEl.querySelector('.scan-include').onchange = e=>{ row.include = e.target.checked; };
+    rowEl.querySelector('.scan-note').oninput = e=>{ row.note = e.target.value; };
+    rowEl.querySelector('.scan-date').onchange = e=>{ row.date = e.target.value; };
+    rowEl.querySelector('.scan-amount').oninput = e=>{ row.amount = e.target.value; };
+    rowEl.querySelector('.scan-cat').onchange = e=>{ row.category = e.target.value; };
+    rowEl.querySelector('.scan-pay').onchange = e=>{ row.payment = e.target.value; };
+  });
+  wrap.querySelectorAll('[data-del]').forEach(btn=>{
+    btn.onclick = ()=>{
+      scanRows = scanRows.filter(r=>r.id!==btn.dataset.del);
+      renderScanRows();
+    };
+  });
+}
+
+document.getElementById('scanCameraBtn').onclick = ()=> document.getElementById('scanCameraInput').click();
+document.getElementById('scanGalleryBtn').onclick = ()=> document.getElementById('scanGalleryInput').click();
+
+let pendingImages = []; // {id, dataUrl}
+let pendingImgSeq = 0;
+
+function readFileAsDataURL(file){
+  return new Promise((resolve, reject)=>{
+    const reader = new FileReader();
+    reader.onload = ev=> resolve(ev.target.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+async function handleScanFiles(e){
+  const files = Array.from(e.target.files || []);
+  if(files.length===0) return;
+  document.getElementById('scanResultsWrap').style.display = 'none';
+  scanRows = [];
+  for(const file of files){
+    if(!file.type.startsWith('image/')) continue;
+    const dataUrl = await readFileAsDataURL(file);
+    pendingImages.push({ id:'img'+(pendingImgSeq++), dataUrl });
+  }
+  renderScanThumbs();
+  e.target.value = '';
+}
+document.getElementById('scanCameraInput').addEventListener('change', handleScanFiles);
+document.getElementById('scanGalleryInput').addEventListener('change', handleScanFiles);
+
+function renderScanThumbs(){
+  const wrap = document.getElementById('scanPreviewWrap');
+  const thumbs = document.getElementById('scanThumbs');
+  const label = document.getElementById('scanCountLabel');
+  if(pendingImages.length===0){
+    wrap.style.display = 'none';
+    return;
+  }
+  wrap.style.display = 'block';
+  label.textContent = pendingImages.length===1 ? '1 photo added' : pendingImages.length+' photos added';
+  document.getElementById('scanExtractBtn').textContent = pendingImages.length===1 ? 'Read this photo' : 'Read these '+pendingImages.length+' photos';
+  thumbs.innerHTML = pendingImages.map(img=>`
+    <div class="scan-thumb" data-id="${img.id}">
+      <img src="${img.dataUrl}" />
+      <button class="scan-thumb-remove" data-remove="${img.id}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+  `).join('');
+  thumbs.querySelectorAll('[data-remove]').forEach(btn=>{
+    btn.onclick = ()=>{
+      pendingImages = pendingImages.filter(img=>img.id!==btn.dataset.remove);
+      renderScanThumbs();
+    };
+  });
+}
+
+document.getElementById('scanExtractBtn').onclick = async ()=>{
+  if(pendingImages.length===0) return;
+  const progressWrap = document.getElementById('scanProgressWrap');
+  const progressBar = document.getElementById('scanProgressBar');
+  const progressText = document.getElementById('scanProgressText');
+  progressWrap.style.display = 'block';
+  progressBar.style.width = '0%';
+  document.getElementById('scanExtractBtn').disabled = true;
+
+  let allRows = [];
+  try{
+    for(let i=0; i<pendingImages.length; i++){
+      const img = pendingImages[i];
+      const prefix = pendingImages.length>1 ? `Photo ${i+1} of ${pendingImages.length} — ` : '';
+      progressText.textContent = prefix+'warming up…';
+      const result = await Tesseract.recognize(img.dataUrl, 'eng', {
+        logger: m=>{
+          if(m.status && typeof m.progress === 'number'){
+            const overall = Math.round(((i + m.progress) / pendingImages.length) * 100);
+            progressBar.style.width = overall+'%';
+            progressText.textContent = prefix+m.status.charAt(0).toUpperCase()+m.status.slice(1)+'…';
+          }
+        }
+      });
+      const text = result.data.text || '';
+      allRows = allRows.concat(parseOcrText(text));
+    }
+    scanRows = allRows;
+    if(scanRows.length===0){
+      progressText.textContent = "Couldn't make out any lines — try clearer, well-lit photos, or add a blank line below to enter it by hand.";
+      renderScanRows();
+      document.getElementById('scanResultsWrap').style.display = 'block';
+    } else {
+      progressWrap.style.display = 'none';
+      renderScanRows();
+    }
+  }catch(err){
+    progressText.textContent = 'Something went wrong reading those photos. Try again with clearer shots.';
+    console.error(err);
+  }finally{
+    document.getElementById('scanExtractBtn').disabled = false;
+  }
+};
+
+document.getElementById('scanAddRowBtn').onclick = ()=>{
+  scanRows.push({ id:'scan'+(scanRowSeq++), date: todayISO(), note:'', amount:'', category:'other', payment:'upi', include:true });
+  renderScanRows();
+};
+
+document.getElementById('scanSaveBtn').onclick = ()=>{
+  const toSave = scanRows.filter(r=> r.include && parseFloat(r.amount) > 0 && r.date);
+  if(toSave.length===0){
+    alert('Check at least one row with a valid amount before saving.');
+    return;
+  }
+  toSave.forEach((r,i)=>{
+    entries.unshift({
+      id: 'imp'+Date.now()+'-'+i+'-'+Math.random().toString(36).slice(2,5),
+      amount: parseFloat(r.amount),
+      note: r.note.trim(),
+      category: r.category,
+      payment: r.payment || 'upi',
+      date: r.date,
+      ts: Date.now()-i
+    });
+  });
+  save();
+  scanRows = [];
+  renderScanRows();
+  document.getElementById('scanPreviewWrap').style.display = 'none';
+  pendingImages = [];
+  document.getElementById('scanCameraInput').value = '';
+  document.getElementById('scanGalleryInput').value = '';
+  const toast = document.getElementById('toast');
+  toast.textContent = `Saved ${toSave.length} ${toSave.length===1?'entry':'entries'}`;
+  toast.classList.add('show');
+  setTimeout(()=>{ toast.classList.remove('show'); toast.textContent='Copied to clipboard'; }, 1800);
+};
+
+/* ---------- Nav ---------- */
+document.querySelectorAll('.nav-btn').forEach(btn=>{
+  btn.onclick = ()=>{
+    document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('view-'+btn.dataset.view).classList.add('active');
+    if(btn.dataset.view==='history') renderHistory();
+    if(btn.dataset.view==='income') renderIncome();
+    if(btn.dataset.view==='export'){ populateExportMonths(); renderExport(); }
+  };
+});
+
+/* =====================================================================
+   ADDED: helpers, income, backup, app lock
+   ===================================================================== */
+const byId = id => document.getElementById(id);
+const pad2 = n => String(n).padStart(2,'0');
+function isoOf(d){ return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate()); }
+function dateOf(iso){ const [y,m,d]=iso.split('-').map(Number); return new Date(y,m-1,d,12); }
+function addDays(iso,n){ const d=dateOf(iso); d.setDate(d.getDate()+n); return isoOf(d); }
+function daysBetween(a,b){ return Math.round((dateOf(b)-dateOf(a))/86400000); }
+function fmtLong(iso){ return dateOf(iso).toLocaleDateString('en-GB',{weekday:'short',day:'numeric',month:'short',year:'numeric'}); }
+function fmtShort(iso){ return dateOf(iso).toLocaleDateString('en-GB',{day:'numeric',month:'short'}); }
+function showToast(msg){
+  const t = byId('toast'); t.textContent = msg; t.classList.add('show');
+  setTimeout(()=>{ t.classList.remove('show'); t.textContent='Copied to clipboard'; }, 1900);
+}
+/* Metro Card entries are either a TOP-UP (money loaded onto the card: counts as spending)
+   or a FARE (a ride paid from the card balance: listed, but not counted again).
+   Each is on a Virtual or Physical card. Older entries without these fields are inferred once from the note. */
+const TOPUP_RE = /top\s*-?\s*up|recharge|reload/i;
+function metroKindOf(e){
+  if(e.category!=='metro') return null;
+  if(e.metroKind==='topup' || e.metroKind==='fare') return e.metroKind;
+  if(TOPUP_RE.test(e.note||'')) return 'topup';
+  return e.payment==='other' ? 'fare' : 'topup';
+}
+const metroCardOf = e => e.metroCard==='physical' ? 'physical' : 'virtual';
+const metroCardLabel = e => metroCardOf(e)==='physical' ? 'Physical' : 'Virtual';
+function isFare(e){ return metroKindOf(e)==='fare'; }
+function spendAmt(e){ return isFare(e) ? 0 : e.amount; }
+function metroTag(e){
+  if(e.category!=='metro') return '';
+  return isFare(e) ? ` [${metroCardLabel(e)} fare] (excluded from total)` : ` [${metroCardLabel(e)} top-up]`;
+}
+function entryMeta(e){
+  const cat = catInfo(e.category).label;
+  if(e.category!=='metro') return cat+' · '+paymentInfo(e.payment||'upi').label;
+  return isFare(e) ? `${cat} · ${metroCardLabel(e)} · fare, not counted`
+                   : `${cat} · ${metroCardLabel(e)} · top-up · ${paymentInfo(e.payment||'upi').label}`;
+}
+
+function askConfirm(title, text, okLabel, onOk){
+  byId('askTitle').textContent = title;
+  byId('askText').textContent = text;
+  byId('askOk').textContent = okLabel || 'OK';
+  byId('askOverlay').classList.add('show');
+  byId('askOk').onclick = ()=>{ byId('askOverlay').classList.remove('show'); onOk(); };
+  byId('askCancel').onclick = ()=> byId('askOverlay').classList.remove('show');
+}
+
+/* ---------- Metro card choices (Add form + Edit sheet) ---------- */
+const METRO_CARDS = [['virtual','Virtual card'],['physical','Physical card']];
+const METRO_KINDS = [['topup','Top-up (load money)'],['fare','Ride fare']];
+let metroCard = 'virtual', metroKind = 'topup', editMetroCard = 'virtual', editMetroKind = 'topup';
+try{ const mp = JSON.parse(LS.getItem('ledger_metro_prefs')||'{}'); if(mp.card) metroCard = mp.card; if(mp.kind) metroKind = mp.kind; }catch(e){}
+function buildChoicePills(gridEl, items, getSel, setSel){
+  gridEl.innerHTML = '';
+  items.forEach(([id,label])=>{
+    const b = document.createElement('button'); b.type='button'; b.className='cat-pill'; b.dataset.v=id; b.textContent=label;
+    b.onclick = ()=>{ setSel(id); };
+    gridEl.appendChild(b);
+  });
+}
+function markPills(gridEl, val){ gridEl.querySelectorAll('.cat-pill').forEach(el=>el.classList.toggle('selected', el.dataset.v===val)); }
+function updateMetroUI(){
+  const m = selectedCategory==='metro';
+  byId('metroBlock').style.display = m ? '' : 'none';
+  byId('payBlock').style.display = (m && metroKind==='fare') ? 'none' : '';
+  markPills(byId('metroCardGrid'), metroCard); markPills(byId('metroKindGrid'), metroKind);
+  byId('metroKindHint').textContent = metroKind==='topup'
+    ? 'Money you load onto the card. It counts in your monthly spending.'
+    : 'A ride paid from the card balance. Listed, but not counted again (the top-up already was).';
+}
+buildChoicePills(byId('metroCardGrid'), METRO_CARDS, ()=>metroCard, v=>{ metroCard=v; saveMetroPrefs(); updateMetroUI(); });
+buildChoicePills(byId('metroKindGrid'), METRO_KINDS, ()=>metroKind, v=>{ metroKind=v; saveMetroPrefs(); updateMetroUI(); });
+function saveMetroPrefs(){ try{ LS.setItem('ledger_metro_prefs', JSON.stringify({card:metroCard, kind:metroKind})); }catch(e){} }
+noteInput.addEventListener('input', ()=>{
+  if(selectedCategory==='metro' && metroKind!=='topup' && TOPUP_RE.test(noteInput.value)){ metroKind='topup'; updateMetroUI(); }
+});
+function updateEditMetroUI(){
+  const m = editSelectedCategory==='metro';
+  byId('editMetroBlock').style.display = m ? '' : 'none';
+  byId('editPayBlock').style.display = (m && editMetroKind==='fare') ? 'none' : '';
+  markPills(byId('editMetroCardGrid'), editMetroCard); markPills(byId('editMetroKindGrid'), editMetroKind);
+}
+buildChoicePills(byId('editMetroCardGrid'), METRO_CARDS, ()=>editMetroCard, v=>{ editMetroCard=v; updateEditMetroUI(); });
+buildChoicePills(byId('editMetroKindGrid'), METRO_KINDS, ()=>editMetroKind, v=>{ editMetroKind=v; updateEditMetroUI(); });
+function loadEditMetro(entry){ editMetroCard = metroCardOf(entry); editMetroKind = metroKindOf(entry)||'topup'; updateEditMetroUI(); }
+function applyMetroFields(entry){
+  if(entry.category==='metro'){
+    entry.metroCard = editMetroCard; entry.metroKind = editMetroKind;
+    if(editMetroKind==='fare') entry.payment = 'other';
+  } else { delete entry.metroCard; delete entry.metroKind; }
+}
+updateMetroUI();
+
+/* ---------- Income ---------- */
+const INCOME_KEY = 'ledger_income_v1';
+let income = [];
+try{ income = JSON.parse(LS.getItem(INCOME_KEY) || '[]'); if(!Array.isArray(income)) income=[]; }catch(e){ income=[]; }
+const INCOME_TYPES = [
+  {id:'salary', label:'Salary'}, {id:'pocket', label:'Pocket money'}, {id:'gift', label:'Gift'},
+  {id:'refund', label:'Refund'}, {id:'other', label:'Other'}
+];
+const incomeType = id => INCOME_TYPES.find(t=>t.id===id) || INCOME_TYPES[INCOME_TYPES.length-1];
+const INC_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 21h16"/></svg>';
+let incSelType = 'salary', incEditType = 'salary', incEditId = null, incomeMonth = todayISO().slice(0,7);
+function saveIncome(){ LS.setItem(INCOME_KEY, JSON.stringify(income)); render(); }
+const sumIncome = list => list.reduce((s,r)=>s+r.amount,0);
+const sumSpend = list => list.reduce((s,e)=>s+spendAmt(e),0);
+const signedMoney = n => (n<0?'−':'')+'₹'+money(Math.abs(n));
+
+function buildTypePills(gridEl, getSel, setSel){
+  gridEl.innerHTML = '';
+  INCOME_TYPES.forEach(t=>{
+    const b = document.createElement('button');
+    b.type='button'; b.className='cat-pill'+(t.id===getSel()?' selected':''); b.dataset.t=t.id;
+    b.innerHTML = INC_SVG + t.label;
+    b.onclick = ()=>{ setSel(t.id); gridEl.querySelectorAll('.cat-pill').forEach(el=>el.classList.toggle('selected', el.dataset.t===t.id)); };
+    gridEl.appendChild(b);
+  });
+}
+buildTypePills(byId('incTypeGrid'), ()=>incSelType, v=>{ incSelType=v; });
+buildTypePills(byId('incEditTypeGrid'), ()=>incEditType, v=>{ incEditType=v; });
+
+byId('incDate').max = todayISO(); byId('incDate').value = todayISO();
+byId('incEditDate').max = todayISO();
+byId('incMonthInput').value = incomeMonth;
+byId('incMonthInput').addEventListener('change', e=>{ incomeMonth = e.target.value || todayISO().slice(0,7); renderIncome(); });
+function incQuick(){
+  const v = byId('incDate').value, y = addDays(todayISO(),-1);
+  byId('incQuickToday').classList.toggle('selected', v===todayISO());
+  byId('incQuickYesterday').classList.toggle('selected', v===y);
+}
+byId('incQuickToday').onclick = ()=>{ byId('incDate').value = todayISO(); incQuick(); };
+byId('incQuickYesterday').onclick = ()=>{ byId('incDate').value = addDays(todayISO(),-1); incQuick(); };
+byId('incDate').addEventListener('change', incQuick);
+incQuick();
+
+byId('incAddBtn').onclick = ()=>{
+  const amt = parseFloat(byId('incAmount').value), err = byId('incError');
+  if(!amt || amt<=0){ err.textContent='Enter an amount above zero.'; err.style.display='block'; byId('incAmount').focus(); return; }
+  err.style.display='none';
+  income.unshift({ id:'i'+Date.now()+'-'+Math.random().toString(36).slice(2,6), amount:amt, note:byId('incNote').value.trim(),
+                   type:incSelType, date:byId('incDate').value||todayISO(), ts:Date.now() });
+  byId('incAmount').value=''; byId('incNote').value='';
+  saveIncome(); showToast('Income added');
+};
+
+function incomeRowHTML(r){
+  return `<div class="entry-row">
+    <div class="entry-main" data-inc-edit="${r.id}">
+      <div class="entry-icon" style="color:var(--ledger-green);">${INC_SVG}</div>
+      <div class="entry-note">${r.note ? escapeHTML(r.note) : incomeType(r.type).label}<div class="entry-cat">${incomeType(r.type).label} · ${fmtShort(r.date)}</div></div>
+      <div class="entry-amount income-amount">+₹${money(r.amount)}</div>
+    </div>
+    <button class="del-btn" data-inc-del="${r.id}"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+  </div>`;
+}
+function renderIncome(){
+  const ym = incomeMonth;
+  const rec = sumIncome(income.filter(r=>r.date.startsWith(ym)));
+  const sp = sumSpend(entries.filter(e=>e.date.startsWith(ym)));
+  const [y,m] = ym.split('-').map(Number);
+  const lbl = new Date(y,m-1,1).toLocaleDateString('en-US',{month:'long',year:'numeric'});
+  byId('incMonthLbl').textContent = lbl.toUpperCase();
+  byId('incReceived').textContent = '₹'+money(rec);
+  byId('incSpent').textContent = '₹'+money(sp);
+  const bal = rec-sp, balAll = sumIncome(income)-sumSpend(entries);
+  const b1 = byId('incBalance'), b2 = byId('incBalanceAll');
+  b1.textContent = signedMoney(bal); b1.className = bal<0?'bal-neg':'bal-pos';
+  b2.textContent = signedMoney(balAll); b2.className = balAll<0?'bal-neg':'bal-pos';
+  byId('incListLabel').textContent = 'Money received · '+lbl;
+  const list = income.filter(r=>r.date.startsWith(ym)).sort((a,b)=> b.date.localeCompare(a.date) || b.ts-a.ts);
+  const el = byId('incomeList');
+  if(!list.length){ el.innerHTML = '<div class="empty">No income logged for this month.</div>'; return; }
+  el.innerHTML = '<div class="card" style="padding:4px 14px;">'+list.map(incomeRowHTML).join('')+'</div>';
+  el.querySelectorAll('[data-inc-edit]').forEach(n=> n.onclick = ()=> openIncEdit(n.dataset.incEdit));
+  el.querySelectorAll('[data-inc-del]').forEach(n=> n.onclick = ()=> {
+    const r = income.find(x=>x.id===n.dataset.incDel); if(!r) return;
+    askConfirm('Delete this income?', `${r.note || incomeType(r.type).label} — ₹${money(r.amount)}. This can't be undone.`, 'Delete', ()=>{
+      income = income.filter(x=>x.id!==r.id); saveIncome();
+    });
+  });
+}
+function renderHomeBalance(){
+  const ym = todayISO().slice(0,7);
+  const row = byId('homeBalanceRow');
+  if(!income.length){ row.style.display='none'; return; }
+  const bal = sumIncome(income.filter(r=>r.date.startsWith(ym))) - sumSpend(entries.filter(e=>e.date.startsWith(ym)));
+  const b = byId('homeBalance'); b.textContent = signedMoney(bal); b.className = bal<0?'bal-neg':'bal-pos';
+  row.style.display = 'flex';
+}
+function openIncEdit(id){
+  const r = income.find(x=>x.id===id); if(!r) return;
+  incEditId = id; incEditType = r.type;
+  byId('incEditAmount').value = r.amount; byId('incEditNote').value = r.note||''; byId('incEditDate').value = r.date;
+  byId('incEditTypeGrid').querySelectorAll('.cat-pill').forEach(el=>el.classList.toggle('selected', el.dataset.t===r.type));
+  byId('incEditError').style.display='none';
+  byId('incEditOverlay').classList.add('show');
+}
+byId('incEditCancel').onclick = ()=> byId('incEditOverlay').classList.remove('show');
+byId('incEditSave').onclick = ()=>{
+  const amt = parseFloat(byId('incEditAmount').value), date = byId('incEditDate').value, err = byId('incEditError');
+  if(!amt || amt<=0){ err.textContent='Enter an amount above zero.'; err.style.display='block'; return; }
+  if(!date){ err.textContent='Pick a date.'; err.style.display='block'; return; }
+  const r = income.find(x=>x.id===incEditId); if(!r){ byId('incEditOverlay').classList.remove('show'); return; }
+  r.amount = amt; r.note = byId('incEditNote').value.trim(); r.date = date; r.type = incEditType;
+  byId('incEditOverlay').classList.remove('show'); saveIncome();
+};
+
+/* Import income records from a backup file (skips ones already present) */
+function importIncomeFrom(data){
+  if(!data || !Array.isArray(data.income)) return 0;
+  const have = {};
+  income.forEach(r=>{ const k=[r.date,r.amount.toFixed(2),r.note||'',r.type].join('|'); have[k]=(have[k]||0)+1; });
+  let added = 0;
+  data.income.forEach((r,i)=>{
+    const amount = parseFloat(r.amount);
+    const date = typeof r.date==='string' && /^\d{4}-\d{2}-\d{2}$/.test(r.date) ? r.date : null;
+    if(!amount || amount<=0 || !date) return;
+    const type = INCOME_TYPES.some(t=>t.id===r.type) ? r.type : 'other';
+    const note = (r.note||'').toString().trim();
+    const k = [date,amount.toFixed(2),note,type].join('|');
+    if(have[k]>0){ have[k]--; return; }
+    income.push({ id:'iimp'+Date.now()+'-'+i+'-'+Math.random().toString(36).slice(2,5), amount, note, type, date, ts: typeof r.ts==='number'?r.ts:Date.now()-i });
+    added++;
+  });
+  if(added) LS.setItem(INCOME_KEY, JSON.stringify(income));
+  return added;
+}
+
+/* ---------- Backup ---------- */
+const BACKUP_KEY = 'ledger_last_backup', SNOOZE_KEY = 'ledger_backup_snooze';
+function downloadBackup(){
+  const data = { app:'ledger', version:2, exportedAt:new Date().toISOString(), entries, income };
+  downloadBlob(new Blob([JSON.stringify(data,null,2)],{type:'application/json'}), `ledger-backup-${todayISO()}.json`);
+  try{ LS.setItem(BACKUP_KEY, String(Date.now())); }catch(e){}
+  refreshBackupUI(); showToast('Backup downloaded');
+}
+function refreshBackupUI(){
+  let last = 0, snooze = 0;
+  try{ last = +LS.getItem(BACKUP_KEY)||0; snooze = +LS.getItem(SNOOZE_KEY)||0; }catch(e){}
+  const days = last ? Math.floor((Date.now()-last)/86400000) : null;
+  byId('backupHint').textContent = last ? `Last backup: ${days===0?'today':days+' day'+(days===1?'':'s')+' ago'}.` : "You haven't backed up yet.";
+  const due = (entries.length || income.length) && (!last || Date.now()-last > 7*86400000) && Date.now() > snooze;
+  byId('backupBanner').style.display = due ? 'flex' : 'none';
+}
+byId('backupBtn').onclick = downloadBackup;
+byId('backupNowBtn').onclick = downloadBackup;
+byId('backupLaterBtn').onclick = ()=>{ try{ LS.setItem(SNOOZE_KEY, String(Date.now()+3*86400000)); }catch(e){} refreshBackupUI(); };
+
+/* ---------- App lock ---------- */
+const LOCK_KEY = 'ledger_lock_v1';
+const hasCrypto = !!(window.crypto && crypto.subtle);
+function getLock(){ try{ return JSON.parse(LS.getItem(LOCK_KEY)||'null') || {enabled:false}; }catch(e){ return {enabled:false}; } }
+function setLock(o){ LS.setItem(LOCK_KEY, JSON.stringify(o)); }
+const hex = buf => [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,'0')).join('');
+async function hashCode(method, salt, code){ return hex(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(salt+':'+method+':'+code))); }
+function randSalt(){ return hex(crypto.getRandomValues(new Uint8Array(16))); }
+
+function makePinPad(dotsEl, padEl, onDone){
+  const LEN = 4; let code = '';
+  dotsEl.innerHTML = Array.from({length:LEN},()=>'<span class="lock-dot"></span>').join('');
+  padEl.innerHTML = '';
+  ['1','2','3','4','5','6','7','8','9','','0','⌫'].forEach(k=>{
+    const b = document.createElement('button'); b.type='button';
+    b.className = 'keypad-btn'+(k===''?' ghost':''); b.textContent = k;
+    if(k==='') b.disabled = true; else b.onclick = ()=> press(k);
+    padEl.appendChild(b);
+  });
+  const paint = ()=> dotsEl.querySelectorAll('.lock-dot').forEach((d,i)=>d.classList.toggle('filled', i<code.length));
+  function press(k){
+    if(k==='⌫'){ code = code.slice(0,-1); paint(); return; }
+    if(code.length>=LEN) return;
+    code += k; paint();
+    if(code.length===LEN){ const c = code; setTimeout(()=>onDone(c), 90); }
+  }
+  return {
+    reset(){ code=''; paint(); },
+    shake(){ dotsEl.classList.remove('shake'); void dotsEl.offsetWidth; dotsEl.classList.add('shake'); }
+  };
+}
+function makePatternPad(gridEl, svgEl, onDone){
+  gridEl.querySelectorAll('.pattern-dot').forEach(n=>n.remove());
+  const dots = [];
+  for(let i=0;i<9;i++){ const d=document.createElement('div'); d.className='pattern-dot'; gridEl.appendChild(d); dots.push(d); }
+  let seq = [], drawing = false, cur = null;
+  const centers = ()=>{ const g=gridEl.getBoundingClientRect(); return dots.map(d=>{ const r=d.getBoundingClientRect(); return {x:r.left-g.left+r.width/2, y:r.top-g.top+r.height/2}; }); };
+  function paint(){
+    const c = centers();
+    dots.forEach((d,i)=>d.classList.toggle('active', seq.includes(i)));
+    let h = '';
+    for(let k=1;k<seq.length;k++){ const a=c[seq[k-1]], b=c[seq[k]]; h += `<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}"/>`; }
+    if(drawing && cur && seq.length){ const a=c[seq[seq.length-1]]; h += `<line x1="${a.x}" y1="${a.y}" x2="${cur.x}" y2="${cur.y}" opacity=".45"/>`; }
+    svgEl.innerHTML = h;
+  }
+  const local = e => { const g=gridEl.getBoundingClientRect(); return {x:e.clientX-g.left, y:e.clientY-g.top}; };
+  function touch(p){ const c=centers(); for(let i=0;i<9;i++){ if(!seq.includes(i) && Math.hypot(c[i].x-p.x, c[i].y-p.y)<32){ seq.push(i); break; } } }
+  gridEl.addEventListener('pointerdown', e=>{ e.preventDefault(); try{ gridEl.setPointerCapture(e.pointerId); }catch(_){} seq=[]; drawing=true; cur=local(e); touch(cur); paint(); });
+  gridEl.addEventListener('pointermove', e=>{ if(!drawing) return; cur=local(e); touch(cur); paint(); });
+  const end = ()=>{ if(!drawing) return; drawing=false; cur=null; paint(); if(seq.length) onDone(seq.slice()); };
+  gridEl.addEventListener('pointerup', end); gridEl.addEventListener('pointercancel', end);
+  return {
+    reset(){ if(drawing) return; seq=[]; cur=null; paint(); },
+    shake(){ gridEl.classList.remove('shake'); void gridEl.offsetWidth; gridEl.classList.add('shake'); }
+  };
+}
+
+/* --- lock screen --- */
+const htmlEl = document.documentElement;
+let verifyCb = null, lastUnlock = Date.now(), hiddenAt = 0;
+const lockErr = m => { byId('lockError').textContent = m || ''; };
+const lockPin = makePinPad(byId('lockDots'), byId('lockKeypad'), c=>attempt(c));
+const lockPat = makePatternPad(byId('lockPatternGrid'), byId('lockPatternSvg'), s=>{
+  if(s.length<4){ lockErr('Connect at least 4 dots'); lockPat.shake(); setTimeout(()=>lockPat.reset(),350); return; }
+  attempt(s.join('-'));
+});
+function showLock(mode, cb){
+  const cfg = getLock(); if(!cfg.enabled) return;
+  verifyCb = cb || null;
+  htmlEl.classList.add('locked');
+  byId('lockPinArea').style.display = cfg.method==='pin' ? '' : 'none';
+  byId('lockPatternArea').style.display = cfg.method==='pattern' ? '' : 'none';
+  byId('lockBioBtn').style.display = cfg.bio ? 'flex' : 'none';
+  byId('lockCancelBtn').style.display = mode==='verify' ? '' : 'none';
+  byId('lockForgotBtn').style.display = mode==='verify' ? 'none' : '';
+  byId('lockSub').textContent = mode==='verify' ? 'Confirm it\'s you' : (cfg.method==='pin' ? 'Enter your PIN' : 'Draw your pattern');
+  lockErr(''); lockPin.reset(); lockPat.reset();
+  if(cfg.bio && mode!=='verify') setTimeout(tryBio, 350);
+}
+function unlockOk(){
+  const cfg = getLock(); cfg.fails = 0; cfg.lockUntil = 0; setLock(cfg);
+  htmlEl.classList.remove('locked'); lastUnlock = Date.now();
+  lockErr(''); lockPin.reset(); lockPat.reset();
+  const cb = verifyCb; verifyCb = null; if(cb) cb();
+}
+async function attempt(code){
+  const cfg = getLock();
+  const wait = Math.ceil(((cfg.lockUntil||0) - Date.now())/1000);
+  if(wait>0){ lockErr(`Too many tries — wait ${wait}s`); lockPin.reset(); lockPat.reset(); return; }
+  const h = await hashCode(cfg.method, cfg.salt, code);
+  if(h === cfg.hash){ unlockOk(); return; }
+  cfg.fails = (cfg.fails||0)+1;
+  if(cfg.fails>=5) cfg.lockUntil = Date.now() + 30000*Math.min(8, cfg.fails-4);
+  setLock(cfg);
+  lockErr(cfg.fails>=5 ? 'Too many tries — wait a bit' : (cfg.method==='pin' ? 'Wrong PIN' : 'Wrong pattern'));
+  lockPin.shake(); lockPin.reset(); lockPat.shake();
+  setTimeout(()=>lockPat.reset(), 350);
+}
+byId('lockCancelBtn').onclick = ()=>{ verifyCb = null; htmlEl.classList.remove('locked'); };
+byId('lockForgotBtn').onclick = ()=>{
+  askConfirm('Erase everything?', 'There is no way around the code. Continuing deletes ALL expenses and income saved on this device and turns the lock off.', 'Erase & reset', ()=>{
+    LS.keys().filter(k=>k.startsWith('ledger_')).forEach(k=>LS.removeItem(k));
+    LedgerStore.flush().then(()=>location.reload(), ()=>location.reload());
+  });
+};
+
+/* --- biometric (WebAuthn platform authenticator = the phone's fingerprint / face / screen lock) --- */
+const b64 = buf => btoa(String.fromCharCode(...new Uint8Array(buf)));
+const unb64 = s => Uint8Array.from(atob(s), c=>c.charCodeAt(0));
+async function bioAvailable(){
+  try{ return !!(window.PublicKeyCredential && PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable && await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()); }
+  catch(e){ return false; }
+}
+async function bioRegister(){
+  const cred = await navigator.credentials.create({ publicKey:{
+    challenge: crypto.getRandomValues(new Uint8Array(32)),
+    rp:{ name:'Ledger' },
+    user:{ id: crypto.getRandomValues(new Uint8Array(16)), name:'ledger-user', displayName:'Ledger' },
+    pubKeyCredParams:[{type:'public-key',alg:-7},{type:'public-key',alg:-257}],
+    authenticatorSelection:{ authenticatorAttachment:'platform', userVerification:'required', residentKey:'discouraged' },
+    timeout:60000, attestation:'none'
+  }});
+  return b64(cred.rawId);
+}
+async function bioCheck(){
+  const cfg = getLock();
+  await navigator.credentials.get({ publicKey:{
+    challenge: crypto.getRandomValues(new Uint8Array(32)),
+    allowCredentials:[{ type:'public-key', id: unb64(cfg.credId) }],
+    userVerification:'required', timeout:60000
+  }});
+}
+async function tryBio(){
+  if(!htmlEl.classList.contains('locked')) return;
+  try{ await bioCheck(); unlockOk(); }catch(e){ /* cancelled or failed: use the code */ }
+}
+byId('lockBioBtn').onclick = tryBio;
+
+/* --- setup sheet --- */
+let setupMethod = 'pin', setupStage = 0, setupFirst = null, setupAfter = null;
+const setupErr = m => { byId('setupError').textContent = m || ''; };
+const setupPin = makePinPad(byId('setupDots'), byId('setupKeypad'), v=>setupSubmit(v));
+const setupPat = makePatternPad(byId('setupPatternGrid'), byId('setupPatternSvg'), s=>{
+  if(s.length<4){ setupErr('Connect at least 4 dots'); setupPat.shake(); setTimeout(()=>setupPat.reset(),350); return; }
+  setupSubmit(s.join('-'));
+});
+function setupPills(){
+  const g = byId('setupMethodGrid'); g.innerHTML = '';
+  [['pin','PIN'],['pattern','Pattern']].forEach(([id,label])=>{
+    const b = document.createElement('button'); b.type='button';
+    b.className = 'cat-pill'+(id===setupMethod?' selected':''); b.textContent = label;
+    b.onclick = ()=>{ setupMethod = id; setupPills(); setupStart(); };
+    g.appendChild(b);
+  });
+}
+function setupStart(keepErr){
+  setupStage = 0; setupFirst = null; if(!keepErr) setupErr('');
+  byId('setupHint').textContent = setupMethod==='pin' ? 'Choose a 4-digit PIN' : 'Draw a pattern (connect at least 4 dots)';
+  byId('setupPinArea').style.display = setupMethod==='pin' ? '' : 'none';
+  byId('setupPatternArea').style.display = setupMethod==='pattern' ? '' : 'none';
+  setupPin.reset(); setupPat.reset();
+}
+function openSetup(after){
+  setupAfter = after || null; setupMethod = 'pin';
+  setupPills(); setupStart();
+  byId('lockSetupOverlay').classList.add('show');
+}
+async function setupSubmit(val){
+  if(setupStage===0){
+    setupFirst = val; setupStage = 1; setupErr('');
+    byId('setupHint').textContent = 'Enter it again to confirm';
+    setupPin.reset(); setupPat.reset(); return;
+  }
+  if(val !== setupFirst){
+    setupPin.shake(); setupPat.shake();
+    setupStart(true); setupErr("Those didn't match — start again");
+    return;
+  }
+  const old = getLock(), salt = randSalt();
+  setLock({ enabled:true, method:setupMethod, salt, hash: await hashCode(setupMethod, salt, val),
+            bio: !!(old.enabled && old.bio), credId: old.credId, fails:0, lockUntil:0 });
+  byId('lockSetupOverlay').classList.remove('show');
+  refreshSettings(); showToast('App lock is on');
+  lastUnlock = Date.now();
+  if(setupAfter) setupAfter();
+}
+byId('setupCancelBtn').onclick = ()=>{ byId('lockSetupOverlay').classList.remove('show'); refreshSettings(); };
+
+/* --- settings sheet --- */
+const settingsErr = m => { const e = byId('settingsError'); e.textContent = m||''; e.style.display = m ? 'block' : 'none'; };
+async function refreshSettings(){
+  const cfg = getLock();
+  byId('lockToggle').classList.toggle('on', !!cfg.enabled);
+  byId('lockStateHint').textContent = cfg.enabled ? (cfg.method==='pin' ? 'On — PIN' : 'On — pattern') : 'Off';
+  byId('lockOptions').style.display = cfg.enabled ? '' : 'none';
+  byId('bioToggle').classList.toggle('on', !!cfg.bio);
+  byId('bioRow').style.display = (cfg.enabled && await bioAvailable()) ? '' : 'none';
+  refreshBackupUI();
+}
+byId('settingsBtn').onclick = ()=>{ settingsErr(''); refreshSettings(); byId('settingsOverlay').classList.add('show'); };
+byId('settingsCloseBtn').onclick = ()=> byId('settingsOverlay').classList.remove('show');
+byId('lockToggle').onclick = ()=>{
+  const cfg = getLock(); settingsErr('');
+  if(!cfg.enabled){
+    if(!hasCrypto){ settingsErr('App lock needs a secure (https) connection — open the app from its https link.'); return; }
+    openSetup();
+  } else {
+    showLock('verify', ()=>{ setLock({enabled:false}); refreshSettings(); showToast('App lock is off'); });
+  }
+};
+byId('lockChangeBtn').onclick = ()=> showLock('verify', ()=> openSetup());
+byId('bioToggle').onclick = async ()=>{
+  const cfg = getLock(); settingsErr('');
+  if(cfg.bio){ cfg.bio = false; setLock(cfg); refreshSettings(); return; }
+  try{
+    cfg.credId = await bioRegister(); cfg.bio = true; setLock(cfg); refreshSettings(); showToast('Fingerprint / face unlock on');
+  }catch(e){
+    settingsErr("Couldn't turn on biometrics (cancelled or not set up on this phone). Your PIN/pattern still works.");
+  }
+};
+
+/* lock on launch, and again after the app has been in the background for 30s+ */
+document.addEventListener('visibilitychange', ()=>{
+  if(!getLock().enabled) return;
+  if(document.hidden){ hiddenAt = Date.now(); htmlEl.classList.add('privacy'); }
+  else {
+    htmlEl.classList.remove('privacy');
+    if(hiddenAt && Date.now()-hiddenAt > 30000 && !htmlEl.classList.contains('locked')) showLock('launch');
+  }
+});
+function initLock(){
+  const cfg = getLock();
+  if(cfg.enabled && (!hasCrypto || !cfg.hash)){ setLock({enabled:false}); htmlEl.classList.remove('locked'); return; }
+  if(cfg.enabled) showLock('launch'); else htmlEl.classList.remove('locked');
+}
+
+/* =====================================================================
+   ADDED: PDF analysis report (pdf-lib, bundled locally so it works offline)
+   ===================================================================== */
+const RPT_KINDS = [
+  {id:'day',label:'Day'},{id:'week',label:'Week'},{id:'month',label:'Month'},{id:'all',label:'All time'},{id:'range',label:'Custom range'}
+];
+let rptKind = 'month', rptIncome = true;
+
+(function initReportUI(){
+  const t = todayISO();
+  byId('rptDay').value = t; byId('rptWeek').value = t; byId('rptMonth').value = t.slice(0,7);
+  byId('rptFrom').value = t.slice(0,8)+'01'; byId('rptTo').value = t;
+  const g = byId('rptKindGrid');
+  RPT_KINDS.forEach(k=>{
+    const b = document.createElement('button'); b.type='button';
+    b.className = 'cat-pill'+(k.id===rptKind?' selected':''); b.textContent = k.label; b.dataset.k = k.id;
+    b.onclick = ()=>{ rptKind = k.id; g.querySelectorAll('.cat-pill').forEach(el=>el.classList.toggle('selected', el.dataset.k===k.id)); rptSync(); };
+    g.appendChild(b);
+  });
+  ['rptDay','rptWeek','rptMonth','rptFrom','rptTo'].forEach(id=> byId(id).addEventListener('change', rptSync));
+  byId('rptIncToggle').onclick = ()=>{ rptIncome = !rptIncome; byId('rptIncToggle').classList.toggle('on', rptIncome); rptSync(); };
+  rptSync();
+})();
+
+function rptSync(){
+  byId('rptFields').querySelectorAll('[data-k]').forEach(el=>{
+    const ks = el.dataset.k; el.style.display = (ks===rptKind) ? '' : 'none';
+  });
+  byId('rptFields').style.display = rptKind==='all' ? 'none' : '';
+  byId('rptError').style.display = 'none';
+  const p = getPeriod();
+  if(p.error){ byId('rptPreview').textContent = p.error; return; }
+  const ex = entries.filter(e=>e.date>=p.from && e.date<=p.to);
+  byId('rptPreview').textContent = `${p.label}: ${ex.length} entr${ex.length===1?'y':'ies'}, ₹${money(sumSpend(ex))} spent` +
+    (rptIncome ? `, ₹${money(sumIncome(income.filter(r=>r.date>=p.from && r.date<=p.to)))} received` : '') + '.';
+}
+
+function monthEnd(ym){ const [y,m] = ym.split('-').map(Number); return isoOf(new Date(y,m,0,12)); }
+function monthName(ym){ const [y,m] = ym.split('-').map(Number); return new Date(y,m-1,1).toLocaleDateString('en-US',{month:'long',year:'numeric'}); }
+
+function getPeriod(){
+  const today = todayISO();
+  let from, to, label, prev = null;
+  if(rptKind==='day'){
+    from = to = byId('rptDay').value || today; label = fmtLong(from);
+    prev = {from:addDays(from,-1), to:addDays(from,-1), name:'the previous day'};
+  } else if(rptKind==='week'){
+    const d = dateOf(byId('rptWeek').value || today), dow = (d.getDay()+6)%7;
+    from = addDays(isoOf(d), -dow); to = addDays(from, 6); label = `Week of ${fmtShort(from)} - ${fmtShort(to)} ${dateOf(to).getFullYear()}`;
+    prev = {from:addDays(from,-7), to:addDays(from,-1), name:'the previous week'};
+  } else if(rptKind==='month'){
+    const ym = byId('rptMonth').value || today.slice(0,7);
+    from = ym+'-01'; to = monthEnd(ym); label = monthName(ym);
+    const pm = isoOf(new Date(dateOf(from).getFullYear(), dateOf(from).getMonth()-1, 1, 12)).slice(0,7);
+    prev = {from:pm+'-01', to:monthEnd(pm), name:monthName(pm)};
+  } else if(rptKind==='range'){
+    from = byId('rptFrom').value; to = byId('rptTo').value;
+    if(!from || !to) return {error:'Pick both a start and an end date.'};
+    if(from>to) return {error:'The start date is after the end date.'};
+    label = 'Custom range';
+    const len = daysBetween(from,to)+1;
+    prev = {from:addDays(from,-len), to:addDays(from,-1), name:'the '+len+' days before'};
+  } else {
+    const ds = entries.map(e=>e.date).concat(rptIncome ? income.map(r=>r.date) : []).sort();
+    from = ds.length ? ds[0] : today; to = ds.length ? ds[ds.length-1] : today; label = 'All time';
+  }
+  return {kind:rptKind, from, to, label, prev};
+}
+
+/* standard PDF fonts can't draw ₹ or non-Latin text, so those are swapped for safe characters */
+function san(s){
+  return String(s==null?'':s).replace(/[‘’]/g,"'").replace(/[“”]/g,'"').replace(/[–—]/g,'-')
+    .replace(/₹/g,'Rs.').replace(/[^\x20-\x7E\xA0-\xFF]/g,'?');
+}
+
+async function buildReportPDF(p, withIncome){
+  const {PDFDocument, StandardFonts, rgb} = PDFLib;
+  const pdf = await PDFDocument.create();
+  const F = await pdf.embedFont(StandardFonts.Helvetica);
+  const B = await pdf.embedFont(StandardFonts.HelveticaBold);
+  const C = { ink:rgb(.106,.141,.188), paper:rgb(.953,.918,.851), line:rgb(.847,.788,.675), soft:rgb(.918,.875,.773),
+              ochre:rgb(.725,.525,.235), green:rgb(.2,.333,.231), red:rgb(.702,.227,.196), muted:rgb(.541,.478,.341), text:rgb(.169,.129,.094) };
+  const W = 595.28, H = 841.89, M = 40, CW = W-2*M;
+  const pages = []; let page, y;
+  const newPage = ()=>{ page = pdf.addPage([W,H]); pages.push(page); y = H-M; };
+  const ensure = h => { if(y-h < M+18) newPage(); };
+  const fit = (s,font,size,maxW)=>{ if(font.widthOfTextAtSize(s,size)<=maxW) return s; while(s.length>1 && font.widthOfTextAtSize(s+'...',size)>maxW) s=s.slice(0,-1); return s+'...'; };
+  const T = (s,x,yy,o={})=>{
+    s = san(s); const size=o.size||9, font=o.font||F; if(o.maxW) s = fit(s,font,size,o.maxW);
+    const w = font.widthOfTextAtSize(s,size); let xx = x;
+    if(o.align==='right') xx = x-w; else if(o.align==='center') xx = x-w/2;
+    page.drawText(s,{x:xx,y:yy,size,font,color:o.color||C.text}); return w;
+  };
+  const R = (x,yy,w,h,color,border)=> page.drawRectangle({x,y:yy,width:w,height:h,color,borderColor:border,borderWidth:border?0.7:0});
+  const L = (x1,y1,x2,y2,color,th)=> page.drawLine({start:{x:x1,y:y1},end:{x:x2,y:y2},thickness:th||0.6,color:color||C.line});
+  const rs = n => 'Rs. '+money(n);
+
+  /* ----- data ----- */
+  const inR = d => d>=p.from && d<=p.to;
+  const ex = entries.filter(e=>inR(e.date));
+  const inc = withIncome ? income.filter(r=>inR(r.date)) : [];
+  const spendList = ex.filter(e=>!isFare(e)), fares = ex.filter(isFare);
+  const totalSpend = sumSpend(ex), totalFare = fares.reduce((s,e)=>s+e.amount,0), totalInc = sumIncome(inc);
+  const today = todayISO();
+  const effTo = p.to>today ? (p.from>today ? p.from : today) : p.to;
+  const dayCount = Math.max(1, daysBetween(p.from, effTo)+1);
+  const byCat = {}, byPay = {}, byDay = {};
+  spendList.forEach(e=>{
+    byCat[e.category] = (byCat[e.category]||0)+e.amount;
+    byPay[e.payment||'upi'] = (byPay[e.payment||'upi']||0)+e.amount;
+    byDay[e.date] = (byDay[e.date]||0)+e.amount;
+  });
+  const busiest = Object.entries(byDay).sort((a,b)=>b[1]-a[1])[0];
+  const activeDays = Object.keys(byDay).length;
+  let prevSpend = null;
+  if(p.prev){ prevSpend = sumSpend(entries.filter(e=>e.date>=p.prev.from && e.date<=p.prev.to)); }
+
+  /* ----- header ----- */
+  newPage();
+  R(0,H-88,W,88,C.ink);
+  T('LEDGER',M,H-46,{size:26,font:B,color:C.paper});
+  T('Spending analysis',M,H-65,{size:10.5,color:C.line});
+  T(p.label,W-M,H-40,{size:13,font:B,color:C.paper,align:'right'});
+  T(`${fmtLong(p.from)}${p.from===p.to?'':'  to  '+fmtLong(p.to)}`,W-M,H-56,{size:9,color:C.line,align:'right'});
+  T('Generated '+fmtLong(today),W-M,H-70,{size:8,color:C.line,align:'right'});
+  y = H-88-26;
+
+  /* ----- summary tiles ----- */
+  const tiles = withIncome
+    ? [['TOTAL SPENT',rs(totalSpend),C.text],['MONEY RECEIVED',rs(totalInc),C.green],
+       ['BALANCE',(totalInc-totalSpend<0?'-':'')+rs(Math.abs(totalInc-totalSpend)),totalInc-totalSpend<0?C.red:C.green],['AVG SPEND / DAY',rs(totalSpend/dayCount),C.text]]
+    : [['TOTAL SPENT',rs(totalSpend),C.text],['ENTRIES',String(spendList.length),C.text],['AVG SPEND / DAY',rs(totalSpend/dayCount),C.text],['HIGHEST DAY',busiest?rs(busiest[1]):'-',C.text]];
+  const tw = (CW-3*8)/4;
+  tiles.forEach((t,i)=>{
+    const x = M+i*(tw+8);
+    R(x,y-50,tw,50,C.paper,C.line);
+    T(t[0],x+8,y-15,{size:7,font:B,color:C.muted});
+    T(t[1],x+8,y-36,{size:12.5,font:B,color:t[2],maxW:tw-14});
+  });
+  y -= 50+16;
+
+  /* ----- insights ----- */
+  const notes = [];
+  if(busiest) notes.push(`Highest spending day: ${fmtLong(busiest[0])} - ${rs(busiest[1])}.`);
+  notes.push(`${spendList.length} spending entr${spendList.length===1?'y':'ies'} across ${activeDays} of ${dayCount} day${dayCount===1?'':'s'}`+(withIncome?`; ${inc.length} income record${inc.length===1?'':'s'}.`:'.'));
+  if(prevSpend!==null){
+    if(prevSpend>0){
+      const ch = (totalSpend-prevSpend)/prevSpend*100;
+      notes.push(`Compared with ${p.prev.name}: ${ch>=0?'up':'down'} ${Math.abs(ch).toFixed(1)}% (${rs(prevSpend)} before, ${rs(totalSpend)} now).`);
+    } else notes.push(`Nothing was spent in ${p.prev.name}, so there is no comparison.`);
+  }
+  const topups = spendList.filter(e=>e.category==='metro');
+  if(topups.length || fares.length){
+    const tv = topups.filter(e=>metroCardOf(e)==='virtual').reduce((a,e)=>a+e.amount,0), tp = topups.filter(e=>metroCardOf(e)==='physical').reduce((a,e)=>a+e.amount,0);
+    notes.push(`Metro cards - top-ups counted as spending: ${rs(tv+tp)} (Virtual ${rs(tv)}, Physical ${rs(tp)}). Rides paid from the card balance: ${rs(totalFare)} (listed, not counted again).`);
+  }
+  const wrap = (s,font,size,maxW)=>{ const out=[]; let line=''; san(s).split(' ').forEach(w=>{ const t=line?line+' '+w:w; if(font.widthOfTextAtSize(t,size)>maxW && line){ out.push(line); line=w; } else line=t; }); if(line) out.push(line); return out; };
+  notes.forEach(n=>{ wrap(n,F,9,CW).forEach(ln=>{ ensure(14); T(ln,M,y,{size:9,color:C.text}); y -= 12; }); y -= 1; });
+  y -= 6;
+
+  const section = title => { ensure(40); y -= 8; T(title.toUpperCase(),M,y,{size:8.5,font:B,color:C.muted}); y -= 5; L(M,y,W-M,y); y -= 15; };
+  const barList = (items,total,color)=>{
+    items.forEach(([label,amt])=>{
+      ensure(18);
+      T(label,M,y,{size:9.5,maxW:96});
+      const bx = M+104, bw = CW-104-120;
+      R(bx,y-2,bw,7,C.soft);
+      if(amt>0) R(bx,y-2,Math.max(1.5,bw*amt/Math.max(total,0.01)),7,color||C.ochre);
+      T(rs(amt),W-M-52,y,{size:9.5,align:'right'});
+      T((total>0?(amt/total*100).toFixed(1):'0.0')+'%',W-M,y,{size:9,align:'right',color:C.muted});
+      y -= 17;
+    });
+  };
+
+  if(totalSpend<=0 && !inc.length && !fares.length){
+    section('Spending'); T('Nothing was recorded in this period.',M,y,{size:10,font:F,color:C.muted}); y -= 18;
+  } else {
+    /* ----- by category ----- */
+    section('Spending by category');
+    const cats = Object.entries(byCat).sort((a,b)=>b[1]-a[1]).map(([id,a])=>[catInfo(id).label,a]);
+    if(cats.length) barList(cats,totalSpend,C.ochre); else { T('No spending in this period.',M,y,{size:9.5,color:C.muted}); y -= 16; }
+    /* ----- by payment ----- */
+    const pays = Object.entries(byPay).sort((a,b)=>b[1]-a[1]).map(([id,a])=>[paymentInfo(id).label,a]);
+    if(pays.length){ section('How you paid'); barList(pays,totalSpend,C.green); }
+
+    /* ----- chart over time ----- */
+    if(totalSpend>0){
+      const span = daysBetween(p.from,p.to)+1;
+      let buckets = [];
+      if(span<=31){ for(let i=0;i<span;i++){ const d=addDays(p.from,i); buckets.push({from:d,to:d,label:String(dateOf(d).getDate()),amt:0}); } }
+      else if(span<=150){ for(let i=0;i<span;i+=7){ const f=addDays(p.from,i), t=addDays(p.from,Math.min(i+6,span-1)); buckets.push({from:f,to:t,label:fmtShort(f),amt:0}); } }
+      else { let cur = p.from.slice(0,7); const last = p.to.slice(0,7);
+        while(cur<=last){ const f=cur+'-01'; buckets.push({from:f,to:monthEnd(cur),label:dateOf(f).toLocaleDateString('en-GB',{month:'short',year:'2-digit'}),amt:0}); const d=dateOf(f); cur=isoOf(new Date(d.getFullYear(),d.getMonth()+1,1,12)).slice(0,7); } }
+      spendList.forEach(e=>{ const b = buckets.find(b=>e.date>=b.from && e.date<=b.to); if(b) b.amt += e.amount; });
+      const unit = span<=31 ? 'day' : (span<=150 ? 'week' : 'month');
+      section('Spending over time (per '+unit+')');
+      const ch = 96; ensure(ch+34);
+      const max = Math.max(...buckets.map(b=>b.amt),1), base = y-ch;
+      R(M,base,CW,ch,C.paper);
+      L(M,base,W-M,base,C.line,0.8);
+      T(rs(max),M+4,y-9,{size:7.5,color:C.muted});
+      const n = buckets.length, slot = CW/n, bw = Math.min(26, slot*0.7), step = Math.ceil(n/12);
+      buckets.forEach((b,i)=>{
+        const h = b.amt>0 ? Math.max(1.5,(ch-16)*b.amt/max) : 0;
+        if(h) R(M+i*slot+(slot-bw)/2, base, bw, h, C.ochre);
+        if(i%step===0) T(b.label,M+i*slot+slot/2,base-10,{size:7,align:'center',color:C.muted});
+      });
+      y = base-22;
+    }
+
+    /* ----- biggest expenses ----- */
+    const top = spendList.slice().sort((a,b)=>b.amount-a.amount).slice(0,5);
+    if(top.length){
+      section('Biggest expenses');
+      top.forEach((e,i)=>{
+        ensure(16);
+        T(String(i+1)+'.',M,y,{size:9.5,font:B,color:C.muted});
+        T(e.note || catInfo(e.category).label,M+16,y,{size:9.5,maxW:260});
+        T(fmtShort(e.date)+' - '+catInfo(e.category).label,M+290,y,{size:8.5,color:C.muted,maxW:130});
+        T(rs(e.amount),W-M,y,{size:9.5,font:B,align:'right'});
+        y -= 15;
+      });
+    }
+  }
+
+  /* ----- income ----- */
+  if(withIncome && inc.length){
+    section('Money received');
+    const byType = {}; inc.forEach(r=>{ byType[r.type] = (byType[r.type]||0)+r.amount; });
+    barList(Object.entries(byType).sort((a,b)=>b[1]-a[1]).map(([id,a])=>[incomeType(id).label,a]), totalInc, C.green);
+    y -= 4;
+    inc.slice().sort((a,b)=>a.date.localeCompare(b.date)||a.ts-b.ts).forEach(r=>{
+      ensure(15);
+      T(fmtShort(r.date),M+4,y,{size:8.5,color:C.muted});
+      T(incomeType(r.type).label,M+60,y,{size:8.5,maxW:80});
+      T(r.note||'-',M+150,y,{size:8.5,maxW:250});
+      T('+ '+rs(r.amount),W-M,y,{size:8.5,align:'right',color:C.green});
+      y -= 13;
+    });
+    ensure(18); L(M,y+6,W-M,y+6,C.ink,0.8);
+    T('TOTAL RECEIVED',M+4,y-6,{size:8.5,font:B}); T(rs(totalInc),W-M,y-6,{size:9.5,font:B,align:'right',color:C.green}); y -= 20;
+  }
+
+  /* ----- all transactions ----- */
+  if(ex.length){
+    section('All transactions');
+    const days = {}; ex.forEach(e=>{ (days[e.date]=days[e.date]||[]).push(e); });
+    Object.keys(days).sort().forEach(d=>{
+      const items = days[d].slice().sort((a,b)=>a.ts-b.ts);
+      ensure(15+13*Math.min(items.length,3));
+      R(M,y-4,CW,15,C.soft);
+      T(fmtLong(d),M+5,y,{size:8.5,font:B});
+      T('Day total  '+rs(sumSpend(items)),W-M-5,y,{size:8.5,font:B,align:'right'});
+      y -= 17;
+      items.forEach(e=>{
+        ensure(14);
+        const fare = isFare(e), col = fare ? C.muted : C.text;
+        T(e.category==='metro' ? 'Metro - '+metroCardLabel(e) : catInfo(e.category).label,M+5,y,{size:8.5,color:col,maxW:84});
+        T(fare?'Card balance':paymentInfo(e.payment||'upi').label,M+92,y,{size:8.5,color:C.muted,maxW:70});
+        T((e.note||'-')+(fare?'  (not counted)':''),M+170,y,{size:8.5,color:col,maxW:250});
+        T(rs(e.amount),W-M-5,y,{size:8.5,align:'right',color:col});
+        y -= 13;
+      });
+      y -= 4;
+    });
+    ensure(24); L(M,y+6,W-M,y+6,C.ink,0.8);
+    T('TOTAL SPENT',M+5,y-7,{size:9,font:B}); T(rs(totalSpend),W-M-5,y-7,{size:10.5,font:B,align:'right'});
+  }
+
+  /* ----- footers ----- */
+  pages.forEach((pg,i)=>{
+    pg.drawLine({start:{x:M,y:30},end:{x:W-M,y:30},thickness:0.5,color:C.line});
+    pg.drawText(san('Ledger - '+p.label),{x:M,y:18,size:7.5,font:F,color:C.muted});
+    const pt = `Page ${i+1} of ${pages.length}`;
+    pg.drawText(pt,{x:W-M-F.widthOfTextAtSize(pt,7.5),y:18,size:7.5,font:F,color:C.muted});
+  });
+  return pdf.save();
+}
+
+/* =====================================================================
+   ADDED: export any period (day / week / month / all time / range) as image, PDF, JSON, CSV or text
+   ===================================================================== */
+const inPeriod = (e,p) => e.date>=p.from && e.date<=p.to;
+const periodSlug = p => p.from===p.to ? p.from : p.from+'_to_'+p.to;
+const periodItems = p => entries.filter(e=>inPeriod(e,p)).sort((a,b)=> a.date.localeCompare(b.date) || a.ts-b.ts);
+function periodRangeText(p){ return p.from===p.to ? fmtLong(p.from) : fmtLong(p.from)+' to '+fmtLong(p.to); }
+
+const EXP_FORMATS = [
+  {id:'image',label:'Image',ext:'png',hint:'A receipt-style picture. The easiest thing for anyone to open on a phone.',group:true},
+  {id:'pdf',label:'PDF',ext:'pdf',hint:'The full analysis report: totals, categories, a chart, biggest expenses and every transaction.',group:false},
+  {id:'json',label:'JSON',ext:'json',hint:'A data file you can import back into Ledger, a backup of just this period.',group:false},
+  {id:'csv',label:'CSV',ext:'csv',hint:'A spreadsheet for sorting and filtering in Excel or Sheets.',group:true},
+  {id:'text',label:'Text',ext:'txt',hint:'Plain text you can paste into any chat.',group:true}
+];
+let expFormat = 'image';
+(function initExportFormats(){
+  const g = byId('expFormatGrid');
+  EXP_FORMATS.forEach(f=>{
+    const b = document.createElement('button'); b.type='button';
+    b.className = 'cat-pill'+(f.id===expFormat?' selected':''); b.textContent = f.label; b.dataset.f = f.id;
+    b.onclick = ()=>{ expFormat = f.id; expSync(); };
+    g.appendChild(b);
+  });
+  expSync();
+})();
+function expSync(){
+  const f = EXP_FORMATS.find(x=>x.id===expFormat);
+  byId('expFormatGrid').querySelectorAll('.cat-pill').forEach(el=>el.classList.toggle('selected', el.dataset.f===expFormat));
+  byId('expFormatHint').textContent = f.hint;
+  byId('expGroupWrap').style.display = f.group ? '' : 'none';
+  byId('expShareLabel').textContent = 'Share '+f.label;
+  byId('expDownloadLabel').textContent = 'Download';
+  const x = byId('expExtraBtn');
+  if(expFormat==='image'){ x.style.display=''; x.textContent='Preview image'; }
+  else if(expFormat==='text'){ x.style.display=''; x.textContent='Copy text'; }
+  else x.style.display='none';
+  byId('rptError').style.display = 'none';
+}
+
+function buildJSONExport(p, withIncome){
+  const data = { app:'ledger', version:2, exportedAt:new Date().toISOString(), period:{label:p.label, from:p.from, to:p.to}, entries: periodItems(p) };
+  if(withIncome) data.income = income.filter(r=>inPeriod(r,p)).sort((a,b)=>a.date.localeCompare(b.date)||a.ts-b.ts);
+  return JSON.stringify(data,null,2);
+}
+
+function buildTextExport(p){
+  const items = periodItems(p), total = sumSpend(items);
+  let text = `Expenses — ${p.label}${p.kind==='range'||p.kind==='week'||p.kind==='all' ? ' ('+periodRangeText(p)+')' : ''}${exportGroupMode==='section' ? ' (by section)' : ''}\n\n`;
+  const line = e => `  • ${exportGroupMode==='section' ? e.date+(e.note?' – '+e.note:' – '+catInfo(e.category).label) : catInfo(e.category).label+(e.note?' – '+e.note:'')}${metroTag(e)} (${paymentInfo(e.payment||'upi').label}): ₹${money(e.amount)}\n`;
+  if(!items.length) text += 'No entries in this period.\n';
+  else if(exportGroupMode==='section'){
+    SECTION_ORDER.forEach(section=>{
+      const sec = items.filter(e=>sectionOf(e.category)===section); if(!sec.length) return;
+      text += `${section.toUpperCase()} — ₹${money(sumSpend(sec))}\n`; sec.forEach(e=>{ text += line(e); }); text += '\n';
+    });
+  } else {
+    const byDate = {}; items.forEach(e=>{ (byDate[e.date]=byDate[e.date]||[]).push(e); });
+    Object.keys(byDate).sort().forEach(date=>{
+      text += `${date} (${weekdayFull(date)}) — ₹${money(sumSpend(byDate[date]))}\n`; byDate[date].forEach(e=>{ text += line(e); });
+    });
+  }
+  return text + `\nTOTAL: ₹${money(total)}`;
+}
+
+function expFail(msg){ const err = byId('rptError'); err.textContent = msg; err.style.display = 'block'; return null; }
+
+/* builds the chosen format for the chosen period: {blob, name, text?} */
+async function makeExport(){
+  byId('rptError').style.display = 'none';
+  const p = getPeriod();
+  if(p.error) return expFail(p.error);
+  const base = 'ledger-'+periodSlug(p), f = EXP_FORMATS.find(x=>x.id===expFormat);
+  try{
+    if(expFormat==='pdf'){
+      if(typeof PDFLib==='undefined') return expFail("The PDF tool didn't load. Reload the app and try again.");
+      return { blob:new Blob([await buildReportPDF(p, rptIncome)],{type:'application/pdf'}), name:base+'.pdf', p };
+    }
+    if(expFormat==='json') return { blob:new Blob([buildJSONExport(p, rptIncome)],{type:'application/json'}), name:base+'.json', p };
+    if(expFormat==='csv') return { blob:new Blob([buildCSV(p)],{type:'text/csv;charset=utf-8;'}), name:base+'.csv', p };
+    if(expFormat==='text'){ const t = buildTextExport(p); return { blob:new Blob([t],{type:'text/plain;charset=utf-8;'}), name:base+'.txt', text:t, p }; }
+    const canvas = drawReceipt(p);
+    return { blob: await canvasToBlob(canvas), name:base+'.png', p };
+  }catch(e){ return expFail('Could not create the '+f.label+': '+(e && e.message ? e.message : e)); }
+}
+
+byId('expDownloadBtn').onclick = async ()=>{
+  const r = await makeExport(); if(!r) return;
+  downloadBlob(r.blob, r.name); showToast('Downloaded '+r.name);
+};
+byId('expShareBtn').onclick = async ()=>{
+  const r = await makeExport(); if(!r) return;
+  const file = new File([r.blob], r.name, {type:r.blob.type.split(';')[0]});
+  const title = 'Ledger — '+r.p.label;
+  try{
+    if(navigator.canShare && navigator.canShare({files:[file]})){ await navigator.share({files:[file], title}); return; }
+    if(r.text && navigator.share){ await navigator.share({title, text:r.text}); return; }
+  }catch(e){ if(e && e.name==='AbortError') return; }
+  downloadBlob(r.blob, r.name);
+  showToast("Sharing isn't available for this file here, so it was downloaded");
+};
+byId('expExtraBtn').onclick = async ()=>{
+  const p = getPeriod(); if(p.error) return expFail(p.error);
+  byId('rptError').style.display = 'none';
+  if(expFormat==='image'){ drawReceipt(p); byId('imageOverlay').style.display = 'flex'; }
+  else if(expFormat==='text'){
+    try{ await navigator.clipboard.writeText(buildTextExport(p)); showToast('Copied to clipboard'); }
+    catch(err){ expFail('Copy failed. Your browser may not allow clipboard access here.'); }
+  }
+};
+byId('closeImageBtn').onclick = ()=>{ byId('imageOverlay').style.display = 'none'; };
+byId('shareImageBtn').onclick = async ()=>{
+  const p = getPeriod(); if(p.error) return;
+  const blob = await canvasToBlob(byId('receiptCanvas')), name = 'ledger-'+periodSlug(p)+'.png';
+  const file = new File([blob], name, {type:'image/png'});
+  if(navigator.canShare && navigator.canShare({files:[file]})){ try{ await navigator.share({files:[file], title:'Ledger — '+p.label}); }catch(e){} }
+  else downloadBlob(blob, name);
+};
+
+/* =====================================================================
+   ADDED: theme picker + "where is my data" panel (both live in Settings)
+   ===================================================================== */
+(function initAppearance(){
+  const grid = byId('themeGrid');
+  const cur = () => LS.getItem('ledger_theme') || 'classic';
+  function draw(){
+    grid.innerHTML = '';
+    LedgerThemes.list.forEach(t=>{
+      const b = document.createElement('button'); b.type = 'button';
+      b.className = 'theme-card' + (t.id===LedgerThemes.get(cur()).id ? ' selected' : ''); b.dataset.theme = t.id;
+      b.innerHTML = `<div class="sw" style="background:${t.bg}">${t.sw.map(c=>`<i style="background:${c}"></i>`).join('')}</div><div class="nm">${t.name}</div><div class="ds">${t.desc}</div><span class="tick">✓</span>`;
+      b.onclick = ()=>{ LS.setItem('ledger_theme', t.id); LedgerThemes.apply(t.id); draw(); };
+      grid.appendChild(b);
+    });
+  }
+  draw();
+})();
+
+function refreshStorageInfo(){
+  const i = LedgerStore.info(), el = byId('storageInfo');
+  let t;
+  if(i.backend==='file') t = `Saved as a real file on this device: ${i.where}. Every change is written straight away, and the previous version is kept as a spare copy.`;
+  else if(i.backend==='indexeddb') t = `Saved in this app's own on-device database, not in the page's web storage. ` + (i.persistent ? "Your browser has marked it as persistent, so it won't be cleared when space runs low." : "Your browser hasn't promised to keep it, so download a backup now and then.") + ` A website can't write files to your phone by itself; the installed Android app saves to a real file (see the README).`;
+  else t = "This browser blocked the on-device database, so data is in basic browser storage. Download backups regularly.";
+  if(i.lastError) t += ' Last problem: ' + i.lastError;
+  el.textContent = t;
+}
+byId('settingsBtn').addEventListener('click', refreshStorageInfo);
+
+/* ---------- Init ---------- */
+document.getElementById('todayDateLine').textContent = new Date().toLocaleDateString('en-US',{weekday:'long', month:'long', day:'numeric'});
+function render(){ renderHome(); renderHistory(); renderIncome(); renderHomeBalance(); rptSync(); refreshBackupUI(); }
+render();
+initLock();
+</script>
+<script src="boot.js"></script>
+</body>
+</html>

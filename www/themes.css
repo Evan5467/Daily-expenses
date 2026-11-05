@@ -1,0 +1,117 @@
+/* Ledger themes. Every colour in the app comes from these variables. */
+:root{
+  --chip:#EADFC5; --chip-sel:#E1EEE2; --sub:#8891A0; --ph:#B0A489; --field:#fff; --soft:#5B6470;
+  --nav-bg:rgba(27,36,48,0.96); --nav-icon:#6C7686; --on-ink:#F3EAD9; --on-accent:#F3EAD9;
+  --paper-2:#F3EAD9; --btn-bg:#33553B; --card-border:1px solid transparent; --card-shadow:0 6px 18px rgba(0,0,0,0.28);
+  --kp-bg:rgba(255,255,255,0.07); --kp-bd:rgba(255,255,255,0.12); --kp-on:rgba(255,255,255,0.18); --lock-ring:#56607A;
+  --wm-font:'Special Elite',monospace; --title-font:'Special Elite',serif; --wm-size:24px; --wm-track:0.1em;
+  --danger-text:#fff; --toggle-off:#D8C9AC; --banner-bg:#F8E9C8; --scheme:light;
+}
+html{ color-scheme:var(--scheme); }
+
+/* map hard-coded colours onto the variables */
+.wordmark,.lock-wordmark{ font-family:var(--wm-font); font-size:var(--wm-size); letter-spacing:var(--wm-track); color:var(--on-ink); }
+.modal-title{ font-family:var(--title-font); }
+.sub,.section-label,.lock-sub,.modal-sheet.dark .hint{ color:var(--sub); }
+.settings-btn{ color:var(--sub); }
+.card{ background:linear-gradient(160deg,var(--paper),var(--paper-2)); border:var(--card-border); box-shadow:var(--card-shadow); }
+.cat-pill,.pay-pill,.date-quick,.entry-icon{ background:var(--chip); }
+.cat-pill.selected,.pay-pill.selected,.date-quick.selected{ background:var(--chip-sel); border-color:var(--ledger-green); }
+.btn-primary{ background:var(--btn-bg); color:var(--on-accent); }
+.btn-danger{ background:var(--rule-red); color:var(--danger-text); }
+#entryDateInput,.date-input,select,.scan-row input[type="text"],.scan-row input[type="number"],.scan-row input[type="date"],.scan-row select{ background:var(--field); color:var(--ink-brown); }
+#amountInput::placeholder,#noteInput::placeholder,#searchInput::placeholder{ color:var(--ph); }
+.entry-cat{ color:var(--ph); } .day-total{ color:var(--soft); } .entry-icon{ color:var(--soft); }
+nav.bottomnav{ background:var(--nav-bg); }
+nav.bottomnav button{ color:var(--nav-icon); }
+nav.bottomnav button.active{ color:var(--ochre); }
+.modal-sheet{ background:var(--paper); border:var(--card-border); border-bottom:none; }
+.modal-sheet.dark{ background:var(--ink); color:var(--on-ink); }
+.modal-sheet.dark .modal-title,.modal-sheet.dark .btn-outline{ color:var(--on-ink); }
+.lock-dot,.pattern-dot::before{ border-color:var(--lock-ring); }
+.keypad-btn{ background:var(--kp-bg); border-color:var(--kp-bd); color:var(--on-ink); }
+.keypad-btn:active{ background:var(--kp-on); }
+.pattern-dot::before{ background:var(--kp-on); }
+.toggle-switch{ background:var(--toggle-off); }
+.backup-banner{ background:var(--banner-bg); }
+.lock-link{ color:var(--nav-icon); }
+.copied-toast{ background:var(--ink-brown); color:var(--paper); }
+.confirm-card{ border:var(--card-border); }
+.empty{ background:var(--paper); }
+.entry-row{ background:transparent; }
+html:not(.ready) #app, html.booting #app{ visibility:hidden; }
+
+/* theme picker */
+.theme-grid{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin:2px 0 6px; }
+.theme-card{ position:relative; text-align:left; background:var(--chip); border:2px solid transparent; border-radius:14px; padding:8px; cursor:pointer; color:var(--ink-brown); font-family:'Inter',sans-serif; }
+.theme-card.selected{ border-color:var(--ochre); }
+.theme-card .sw{ height:46px; border-radius:9px; display:flex; align-items:flex-end; gap:4px; padding:6px; margin-bottom:7px; border:1px solid rgba(128,128,128,.35); }
+.theme-card .sw i{ display:block; flex:1; height:100%; border-radius:5px; }
+.theme-card .nm{ font-size:13px; font-weight:600; }
+.theme-card .ds{ font-size:11px; color:var(--muted); margin-top:1px; }
+.theme-card .tick{ position:absolute; top:10px; right:10px; width:18px; height:18px; border-radius:50%; background:var(--ochre); color:var(--on-accent); font-size:11px; display:none; align-items:center; justify-content:center; font-weight:700; }
+.theme-card.selected .tick{ display:flex; }
+
+/* ---------- Midnight Gold ---------- */
+html[data-theme="midnight"]{
+  --ink:#08080B; --paper:#17171E; --paper-2:#0F0F14; --paper-line:#34302A; --paper-line-soft:#24221D; --rule-red:#E5736A;
+  --ledger-green:#CFAA62; --ochre:#D9B672; --ink-brown:#F3ECDD; --muted:#A39B84;
+  --chip:#22222B; --chip-sel:#2E2819; --sub:#8F8977; --ph:#6F6A5B; --field:#1D1D25; --soft:#BDB49C;
+  --nav-bg:rgba(8,8,11,0.94); --nav-icon:#6F6A5B; --on-ink:#F3ECDD; --on-accent:#17130A;
+  --btn-bg:linear-gradient(135deg,#F0D793,#B58B3A); --card-border:1px solid rgba(217,182,114,0.22);
+  --card-shadow:0 12px 34px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.04);
+  --wm-font:'Cormorant Garamond','Playfair Display',Georgia,serif; --title-font:'Cormorant Garamond',Georgia,serif; --wm-size:30px; --wm-track:0.28em;
+  --toggle-off:#3A362E; --banner-bg:#2A2418; --scheme:dark;
+}
+html[data-theme="midnight"] .wordmark{ background:linear-gradient(90deg,#B58B3A,#F6E3A8,#B58B3A); -webkit-background-clip:text; background-clip:text; color:transparent; font-weight:600; }
+
+/* ---------- Emerald Luxe ---------- */
+html[data-theme="emerald"]{
+  --ink:#03201A; --paper:#0C3429; --paper-2:#082A21; --paper-line:#22594A; --paper-line-soft:#174337; --rule-red:#F0907F;
+  --ledger-green:#E3CB92; --ochre:#E6D09A; --ink-brown:#F3EDD8; --muted:#9FBBAB;
+  --chip:#134537; --chip-sel:#1E5C49; --sub:#7FA593; --ph:#6C9181; --field:#0E3F31; --soft:#BAD3C5;
+  --nav-bg:rgba(3,32,26,0.95); --nav-icon:#6C9181; --on-ink:#F3EDD8; --on-accent:#0F261D;
+  --btn-bg:linear-gradient(135deg,#F1E1B2,#BD9B52); --card-border:1px solid rgba(230,208,154,0.25);
+  --card-shadow:0 12px 32px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.05);
+  --wm-font:'Playfair Display',Georgia,serif; --title-font:'Playfair Display',Georgia,serif; --wm-size:25px; --wm-track:0.22em;
+  --toggle-off:#2A5C4C; --banner-bg:#12433A; --scheme:dark;
+}
+
+/* ---------- Royal Sapphire ---------- */
+html[data-theme="sapphire"]{
+  --ink:#060D24; --paper:#111C42; --paper-2:#0B1535; --paper-line:#2C3C74; --paper-line-soft:#202F60; --rule-red:#FF8F85;
+  --ledger-green:#B5C8F6; --ochre:#C4D3F8; --ink-brown:#EEF2FF; --muted:#9AA8D2;
+  --chip:#1A2A5E; --chip-sel:#253B80; --sub:#8190BC; --ph:#6877A6; --field:#0D1838; --soft:#B8C3E8;
+  --nav-bg:rgba(6,13,36,0.95); --nav-icon:#6877A6; --on-ink:#EEF2FF; --on-accent:#08112E;
+  --btn-bg:linear-gradient(135deg,#D9E4FF,#8DA6E8); --card-border:1px solid rgba(181,200,246,0.22);
+  --card-shadow:0 12px 32px rgba(0,0,10,0.55), inset 0 1px 0 rgba(255,255,255,0.05);
+  --wm-font:'Cormorant Garamond',Georgia,serif; --title-font:'Cormorant Garamond',Georgia,serif; --wm-size:30px; --wm-track:0.3em;
+  --toggle-off:#34457F; --banner-bg:#1C2B5E; --scheme:dark;
+}
+
+/* ---------- Rose Noir ---------- */
+html[data-theme="rose"]{
+  --ink:#130609; --paper:#271019; --paper-2:#1D0C13; --paper-line:#4D2636; --paper-line-soft:#391B28; --rule-red:#FF917F;
+  --ledger-green:#EDB9A4; --ochre:#F0C0AD; --ink-brown:#FAEBE4; --muted:#C09E9E;
+  --chip:#351825; --chip-sel:#4A2336; --sub:#A8838D; --ph:#87646E; --field:#2E1420; --soft:#D5B6B3;
+  --nav-bg:rgba(19,6,9,0.95); --nav-icon:#87646E; --on-ink:#FAEBE4; --on-accent:#2A0F14;
+  --btn-bg:linear-gradient(135deg,#F7D2C3,#C98770); --card-border:1px solid rgba(240,192,173,0.22);
+  --card-shadow:0 12px 32px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.05);
+  --wm-font:'Playfair Display',Georgia,serif; --title-font:'Playfair Display',Georgia,serif; --wm-size:25px; --wm-track:0.24em;
+  --toggle-off:#4E2938; --banner-bg:#3A1B2A; --scheme:dark;
+}
+
+/* ---------- Ivory & Gold (light) ---------- */
+html[data-theme="ivory"]{
+  --ink:#ECE5D6; --paper:#FFFEFA; --paper-2:#F8F2E4; --paper-line:#DFD3B6; --paper-line-soft:#ECE3CE; --rule-red:#B03A30;
+  --ledger-green:#23201A; --ochre:#A57A28; --ink-brown:#1F1B14; --muted:#857851;
+  --chip:#F2EBDA; --chip-sel:#EADFBF; --sub:#8A7E63; --ph:#B3A88E; --field:#FFFFFF; --soft:#5E5645;
+  --nav-bg:rgba(255,254,250,0.96); --nav-icon:#9E937B; --on-ink:#1F1B14; --on-accent:#EBD08E;
+  --btn-bg:linear-gradient(135deg,#2B2820,#14120E); --card-border:1px solid #E4D8B7; --card-shadow:0 8px 24px rgba(90,65,20,0.13);
+  --kp-bg:rgba(0,0,0,0.05); --kp-bd:rgba(0,0,0,0.14); --kp-on:rgba(0,0,0,0.14); --lock-ring:#B3A88E;
+  --wm-font:'Playfair Display',Georgia,serif; --title-font:'Playfair Display',Georgia,serif; --wm-size:25px; --wm-track:0.24em;
+  --toggle-off:#D5C9A9; --banner-bg:#F6E9C4; --scheme:light;
+}
+html[data-theme="ivory"] .modal-overlay{ background:rgba(40,30,10,0.45); }
+html[data-theme="ivory"] .copied-toast{ background:#1F1B14; color:#EBD08E; }
+html[data-theme="ivory"] nav.bottomnav{ border-top-color:rgba(0,0,0,0.08); }
